@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createFirebaseSync,isFirebaseConfigured,normalizePartnerEmail,firebaseErrorMessage,HOME_PATH,OWNER_EMAIL} from '../firebase-sync.js';
+import {createFirebaseSync,isFirebaseConfigured,normalizePartnerEmail,firebaseErrorMessage,HOME_PATH} from '../firebase-sync.js';
 const config={apiKey:'test-key',authDomain:'test.firebaseapp.com',projectId:'test',appId:'test-app'};
-const owner={uid:'owner-uid',email:OWNER_EMAIL,emailVerified:true,displayName:'Owner'};
+const owner={uid:'owner-uid',email:'owner@example.com',emailVerified:true,displayName:'Owner'};
 const partner={uid:'partner-uid',email:'partner@example.com',emailVerified:true};
-const home={schemaVersion:1,ownerUid:owner.uid,ownerEmail:OWNER_EMAIL,partnerEmail:partner.email,createdAt:{},updatedAt:{}};
+const home={schemaVersion:1,ownerUid:owner.uid,ownerEmail:owner.email,partnerEmail:partner.email,createdAt:{},updatedAt:{}};
 const initial={version:1,state:{version:1,settings:{},inventory:[],plan:{},checked:{}},preferences:{}};
 const record=(revision=1,snapshot=initial)=>({schemaVersion:1,revision,snapshot,recentMutationIds:[],updatedBy:owner.uid,updatedAt:{toDate:()=>new Date('2026-10-28T00:00:00Z')}});
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
@@ -42,7 +42,7 @@ test('missing Firebase config never imports SDK or prevents local operation',asy
 test('partner allowlist uses one normalized distinct email and can be revoked',()=>{
  assert.equal(normalizePartnerEmail(' Wife@Example.com '),'wife@example.com');
  assert.equal(normalizePartnerEmail(''),'');
- for(const value of [OWNER_EMAIL,'not-an-email','two@example.com,other@example.com','a@ b.com'])assert.throws(()=>normalizePartnerEmail(value));
+ for(const value of [owner.email,'not-an-email','two@example.com,other@example.com','a@ b.com'])assert.throws(()=>normalizePartnerEmail(value,owner.email));
 });
 
 test('only server-confirmed snapshots are reported as synchronized',async()=>{
@@ -103,7 +103,7 @@ test('membership revocation invalidates a queued data callback and further write
 test('owner membership change never changes owner fields and rejects invalid address before a write',async()=>{
  const h=await connected();
  await h.service.setPartnerEmail(' NEW@Example.com ');
- const saved=h.store.get(HOME_PATH);assert.equal(saved.partnerEmail,'new@example.com');assert.equal(saved.ownerUid,owner.uid);assert.equal(saved.ownerEmail,OWNER_EMAIL);
+ const saved=h.store.get(HOME_PATH);assert.equal(saved.partnerEmail,'new@example.com');assert.equal(saved.ownerUid,owner.uid);assert.equal(saved.ownerEmail,owner.email);
  const count=h.transactions;await assert.rejects(h.service.setPartnerEmail('bad-email'));assert.equal(h.transactions,count);h.service.destroy();
 });
 
@@ -235,4 +235,42 @@ test('contention probes briefly for a racing winner whose commit is not yet visi
  };
  const result=await h.service.submit({id:'delayed-winner',baseRevision:1,value:{mine:true}});
  assert.equal(dataProbes,2);assert.equal(attempts,2);assert.equal(result.revision,3);assert.equal(result.snapshot.other,true);assert.equal(result.snapshot.mine,true);h.service.destroy();
+});
+
+test('household owner identity comes from the server-authorized runtime record',async()=>{
+ const h=harness(),service=await h.create();
+ const configuredOwner={uid:'configured-owner',email:'configured-owner@example.net',emailVerified:true};
+ await h.emitAuth(configuredOwner);
+ const created=h.store.get(HOME_PATH);
+ assert.equal(created.ownerUid,configuredOwner.uid);assert.equal(created.ownerEmail,configuredOwner.email);
+ h.emit(HOME_PATH,created);
+ assert.equal(h.events.home.at(-1).isOwner,true);
+ await service.initialize(initial);
+ assert.equal(h.store.get(`${HOME_PATH}/data/current`).updatedBy,configuredOwner.uid);
+ service.destroy();
+});
+
+test('a denied bootstrap still lets an invited partner read an existing authorized home',async()=>{
+ const h=harness(),service=await h.create();h.store.set(HOME_PATH,home);
+ const run=h.sdk.runTransaction;
+ h.sdk.runTransaction=async()=>{throw Object.assign(new Error('creation is owner-only'),{code:'permission-denied'});};
+ await h.emitAuth(partner);
+ assert.equal(h.events.status.at(-1).state,'connecting');
+ assert.equal(h.listeners.filter(listener=>listener.path===HOME_PATH).length,1);
+ h.emit(HOME_PATH,home);
+ assert.equal(h.events.home.at(-1).isOwner,false);
+ h.sdk.runTransaction=run;
+ h.store.set(`${HOME_PATH}/data/current`,record());
+ const result=await service.submit({id:'authorized-partner',baseRevision:1,value:{partnerEdit:true}});
+ assert.equal(result.snapshot.partnerEdit,true);service.destroy();
+});
+
+test('an uninvited account remains denied by the server after its bootstrap is rejected',async()=>{
+ const h=harness(),service=await h.create();
+ h.sdk.runTransaction=async()=>{throw Object.assign(new Error('server policy denied'),{code:'permission-denied'});};
+ await h.emitAuth({uid:'stranger-uid',email:'stranger@example.org',emailVerified:true});
+ const listener=h.listeners.find(item=>item.path===HOME_PATH);
+ listener.error(Object.assign(new Error('server read denied'),{code:'permission-denied'}));
+ assert.equal(h.events.status.at(-1).state,'forbidden');assert.equal(h.events.data.length,0);
+ await assert.rejects(service.initialize(initial),{code:'sync/forbidden'});service.destroy();
 });

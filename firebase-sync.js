@@ -1,16 +1,15 @@
 /** Firebase transport only. Meal validation and conflict merging live in sync-model.js. */
 export const FIREBASE_SDK_VERSION='13.1.0';
 export const HOME_PATH='mealHomes/weekly-table';
-export const OWNER_EMAIL='make1228@gmail.com';
 
 export function isFirebaseConfigured(config){
  return !!config&&['apiKey','authDomain','projectId','appId'].every(key=>typeof config[key]==='string'&&config[key].trim()&&!/^(TODO|YOUR_|REPLACE_)/i.test(config[key]));
 }
-export function normalizePartnerEmail(value){
+export function normalizePartnerEmail(value,ownerEmail=''){
  const email=String(value??'').trim().toLowerCase();
  if(email==='')return '';
  if(email.length>320||!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email))throw new Error('請填寫家人登入使用的完整 Google 帳號。');
- if(email===OWNER_EMAIL)throw new Error('請填寫另一位家人的 Google 帳號。');
+ if(email===String(ownerEmail).trim().toLowerCase())throw new Error('請填寫另一位家人的 Google 帳號。');
  return email;
 }
 export function firebaseErrorMessage(error){
@@ -62,7 +61,7 @@ export async function createFirebaseSync({config,applyMutation,validateSnapshot=
  const active=token=>!destroyed&&token===generation;
  function clearHome(){homeUnsubscribe();dataUnsubscribe();homeUnsubscribe=()=>{};dataUnsubscribe=()=>{};dataListening=false;home=null;lastDataRevision=-1;}
  function fail(error,token){if(!active(token))return;const forbidden=error?.code==='permission-denied'||error?.code==='sync/forbidden';if(forbidden){generation++;clearHome();onHome(null);}notify(forbidden?'forbidden':'error',{error,message:firebaseErrorMessage(error)});}
- function currentMember(){return user&&user.emailVerified&&home&&(user.uid===home.ownerUid&&user.email?.toLowerCase()===OWNER_EMAIL||home.partnerEmail!==''&&user.email?.toLowerCase()===home.partnerEmail);}
+ function currentMember(){return user&&user.emailVerified&&home&&(user.uid===home.ownerUid&&user.email?.toLowerCase()===home.ownerEmail||home.partnerEmail!==''&&user.email?.toLowerCase()===home.partnerEmail);}
  function assertSession({owner=false}={}){
   if(destroyed||!user||auth.currentUser?.uid!==user.uid)throw syncError('sync/signed-out','請先登入。');
   if(!currentMember()||owner&&user.uid!==home.ownerUid)throw syncError('sync/forbidden','這個帳號沒有操作權限。');
@@ -72,7 +71,7 @@ export async function createFirebaseSync({config,applyMutation,validateSnapshot=
  function verifyMemberSnapshot(membership,session,{owner=false}={}){
   if(!active(session.token)||auth.currentUser?.uid!==session.uid)throw syncError('sync/signed-out','登入狀態已變更。');
   if(!membership.exists())throw syncError('sync/forbidden','家庭空間尚未建立。');
-  const data=membership.data(),isOwner=session.uid===data.ownerUid&&user?.email?.toLowerCase()===OWNER_EMAIL;
+  const data=membership.data(),isOwner=session.uid===data.ownerUid&&user?.email?.toLowerCase()===data.ownerEmail;
   const isPartner=data.partnerEmail!==''&&user?.email?.toLowerCase()===data.partnerEmail;
   if(!user?.emailVerified||data.schemaVersion!==1||!isOwner&&(owner||!isPartner))throw syncError('sync/forbidden','這個帳號沒有操作權限。');
  }
@@ -131,16 +130,19 @@ export async function createFirebaseSync({config,applyMutation,validateSnapshot=
   await sdk.runTransaction(db,async transaction=>{
    const snapshot=await transaction.get(homeRef);
    if(!active(token))throw syncError('sync/signed-out','登入狀態已變更。');
-   if(!snapshot.exists())transaction.set(homeRef,{schemaVersion:1,ownerUid:user.uid,ownerEmail:OWNER_EMAIL,partnerEmail:'',createdAt:sdk.serverTimestamp(),updatedAt:sdk.serverTimestamp()});
+   if(!snapshot.exists())transaction.set(homeRef,{schemaVersion:1,ownerUid:user.uid,ownerEmail:user.email.toLowerCase(),partnerEmail:'',createdAt:sdk.serverTimestamp(),updatedAt:sdk.serverTimestamp()});
   });
  }
  authUnsubscribe=sdk.onAuthStateChanged(auth,async nextUser=>{
   generation++;const token=generation;clearHome();user=nextUser;onAuth(publicUser(user));onHome(null);
   if(!user){notify('signed-out');return;}
   notify('connecting');
-  if(!user.emailVerified){fail(syncError('sync/forbidden','請使用已驗證的 Google 帳號。'),token);return;}
-  try{if(user.email?.toLowerCase()===OWNER_EMAIL)await bootstrapOwner(token);if(active(token))watchHome(token);}
-  catch(error){fail(error,token);}
+  if(!user.emailVerified||typeof user.email!=='string'||!user.email){fail(syncError('sync/forbidden','請使用已驗證的 Google 帳號。'),token);return;}
+  // The private server policy decides who may create this household. The public
+  // client contains no owner identity; existing invited members may only read it.
+  try{await bootstrapOwner(token);}
+  catch(error){if(error?.code!=='permission-denied'){fail(error,token);return;}}
+  if(active(token))watchHome(token);
  },error=>fail(error,generation));
  const online=()=>{if(user)notify('connecting');};
  const offline=()=>{if(user)notify('offline');};
@@ -212,7 +214,7 @@ export async function createFirebaseSync({config,applyMutation,validateSnapshot=
    }catch(error){fail(error,session.token);throw error;}
   },
   async setPartnerEmail(value){
-   const session=assertSession({owner:true}),partnerEmail=normalizePartnerEmail(value);notify('saving');
+   const session=assertSession({owner:true}),partnerEmail=normalizePartnerEmail(value,home.ownerEmail);notify('saving');
    try{
     await sdk.runTransaction(db,async transaction=>{
      const existing=await transaction.get(homeRef);

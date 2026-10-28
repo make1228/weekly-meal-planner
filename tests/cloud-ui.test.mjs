@@ -7,7 +7,7 @@ import {createSharedSnapshot,applyMutation} from '../sync-model.js';
 
 const clone=value=>structuredClone(value);
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-const owner={uid:'owner',email:'make1228@gmail.com'};
+const owner={uid:'owner',email:'owner@example.com'};
 const partner={uid:'partner',email:'partner@example.com'};
 const home={isOwner:true,ownerEmail:owner.email,partnerEmail:partner.email};
 function initialState(seed=0){const settings={...clone(DEFAULT_SETTINGS),startDate:'2026-10-26',seed};return {version:1,settings,inventory:[],plan:{...generatePlan(settings,[]),generationId:`generation-${seed}`},checked:{}};}

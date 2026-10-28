@@ -11,14 +11,15 @@ import {createFirebaseSync} from '../firebase-sync.js';
 const require=createRequire(process.env.FIREBASE_QA_PACKAGE||new URL('../package.json',import.meta.url));
 const {initializeTestEnvironment,assertFails,assertSucceeds}=require('@firebase/rules-unit-testing');
 const firestoreSdk=require('firebase/firestore');
-const {doc,getDoc,setDoc,updateDoc,serverTimestamp,Timestamp,setLogLevel}=firestoreSdk;
+const {doc,collection,getDoc,getDocs,setDoc,updateDoc,deleteDoc,serverTimestamp,Timestamp,setLogLevel}=firestoreSdk;
 setLogLevel('silent');
 if(!process.env.FIRESTORE_EMULATOR_HOST)throw new Error('FIRESTORE_EMULATOR_HOST is required; production access is disabled.');
 const projectId='demo-weekly-table-rules';
 let environment;
 const ownerUid='owner-uid',partnerUid='partner-uid';
-const ownerEmail='make1228@gmail.com',partnerEmail='partner@example.com';
+const ownerEmail='owner@example.com',partnerEmail='partner@example.com';
 const homePath='mealHomes/weekly-table',dataPath=`${homePath}/data/current`;
+const policyPath='mealHomeAccess/weekly-table';
 const claims=email=>({email,email_verified:true,firebase:{sign_in_provider:'google.com'}});
 const dbFor=(uid,email,extra={})=>environment.authenticatedContext(uid,{...claims(email),...extra}).firestore();
 const home=(partner='')=>({schemaVersion:1,ownerUid,ownerEmail,partnerEmail:partner,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
@@ -38,7 +39,10 @@ before(async()=>{
  const [host,port]=process.env.FIRESTORE_EMULATOR_HOST.split(':');
  environment=await initializeTestEnvironment({projectId,firestore:{host,port:Number(port),rules:await readFile(new URL('../firestore.rules',import.meta.url),'utf8')}});
 });
-beforeEach(async()=>environment.clearFirestore());
+beforeEach(async()=>{
+ await environment.clearFirestore();
+ await environment.withSecurityRulesDisabled(async context=>setDoc(doc(context.firestore(),policyPath),{ownerEmail}));
+});
 after(async()=>environment?.cleanup());
 
 test('only the verified Google owner can create the fixed household',async()=>{
@@ -56,6 +60,34 @@ test('only the verified Google owner can create the fixed household',async()=>{
  await assertSucceeds(setDoc(doc(owner,homePath),home()));
  await assertSucceeds(setDoc(doc(owner,dataPath),data()));
  assert.equal((await getDoc(doc(owner,homePath))).data().ownerUid,ownerUid);
+});
+
+test('the private access policy denies direct client reads, lists, creates, updates and deletes',async()=>{
+ await seed();
+ const clients=[environment.unauthenticatedContext().firestore(),dbFor('stranger','stranger@example.com'),dbFor(ownerUid,ownerEmail),dbFor(partnerUid,partnerEmail)];
+ for(const db of clients){
+  await assertFails(getDoc(doc(db,policyPath)));
+  await assertFails(getDocs(collection(db,'mealHomeAccess')));
+  await assertFails(setDoc(doc(db,policyPath),{ownerEmail:'replacement@example.com'}));
+  await assertFails(updateDoc(doc(db,policyPath),{ownerEmail:'replacement@example.com'}));
+  await assertFails(deleteDoc(doc(db,policyPath)));
+  await assertFails(setDoc(doc(db,'mealHomeAccess/another-home'),{ownerEmail}));
+ }
+ await environment.withSecurityRulesDisabled(async context=>deleteDoc(doc(context.firestore(),policyPath)));
+ for(const db of clients)await assertFails(setDoc(doc(db,policyPath),{ownerEmail}));
+});
+
+test('missing or malformed administrator policy cannot bootstrap a household',async()=>{
+ const owner=dbFor(ownerUid,ownerEmail);
+ for(const policy of [null,{}, {ownerEmail:123}]){
+  await environment.withSecurityRulesDisabled(async context=>{
+   const ref=doc(context.firestore(),policyPath);
+   if(policy===null)await deleteDoc(ref);else await setDoc(ref,policy);
+  });
+  await assertFails(getDoc(doc(owner,homePath)));
+  await assertFails(setDoc(doc(owner,homePath),home()));
+  await assertFails(setDoc(doc(owner,dataPath),data()));
+ }
 });
 
 test('unauthenticated users and uninvited accounts cannot read or modify household data',async()=>{
