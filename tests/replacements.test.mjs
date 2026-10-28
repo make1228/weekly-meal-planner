@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DEFAULT_SETTINGS,INGREDIENTS,RECIPES,generatePlan,recipeById,getReplacementOptions,replaceMeal,aggregateShopping} from '../engine.js';
+import {legacySettings} from './fixtures.mjs';
 
-const preferences=(patch={})=>({...structuredClone(DEFAULT_SETTINGS),startDate:'2026-10-26',...patch});
+const preferences=legacySettings;
 const meals=plan=>plan.days.flatMap(day=>day.meals);
 const byId=new Map(INGREDIENTS.map(item=>[item.id,item]));
 const round=n=>Math.round((n+Number.EPSILON)*100)/100;

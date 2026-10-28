@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {INGREDIENTS, RECIPES, DEFAULT_SETTINGS, recipeById, generatePlan, replaceMeal, aggregateShopping, getMonday, addDays, formatQty} from '../engine.js';
+import {legacySettings} from './fixtures.mjs';
 
-const settings = (patch={}) => ({...structuredClone(DEFAULT_SETTINGS),startDate:'2026-10-26',...patch});
+const settings = legacySettings;
 const flatten = plan => plan.days.flatMap(day => day.meals);
 const round = number => Math.round((number + Number.EPSILON) * 100) / 100;
 const byId = new Map(INGREDIENTS.map(item => [item.id,item]));
@@ -54,7 +55,7 @@ test('recipe catalog uses canonical units, consistent quantities and complete co
   }
 });
 
-test('default seven dinners honor different weekday and weekend serving counts and weekly starch targets',()=>{
+test('seven configured dinners honor different weekday and weekend serving counts and weekly starch targets',()=>{
   const plan=generatePlan(settings({weekdayPeople:2,weekendPeople:5}),[]);
   assert.equal(plan.days.length,7);
   assert.deepEqual(plan.days.map(day=>day.date),Array.from({length:7},(_,i)=>addDays('2026-10-26',i)));

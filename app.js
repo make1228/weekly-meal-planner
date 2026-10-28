@@ -1,10 +1,19 @@
 import {INGREDIENTS,RECIPES,DEFAULT_SETTINGS,generatePlan,replaceMeal,getReplacementOptions,setMealCooked,aggregateShopping,recipeById,formatQty,getMonday,addDays} from './engine.js';
+import {PREFERENCES_VERSION,SETTINGS_DRAFT_KEY,INVENTORY_KEY,PANTRY_DRAFT_KEY,settingsToDraft,restoreDraft,draftToSettings,draftMatchesSettings,sanitizeInventory,sanitizePantryDraft} from './preferences.js';
 
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const STORAGE_KEY='weekly-table-v1';
 const ingredients=new Map(INGREDIENTS.map(i=>[i.id,i]));
+const ingredientIds=new Set(ingredients.keys());
+const kitchenEquipment=[
+ {name:'BOSCH 8系列 Flex IH 感應爐 深遂黑',model:'PXY875KW1E',match:/IH/},
+ {name:'氣炸鍋',model:'',match:/氣炸/},
+ {name:'電子鍋',model:'',match:/電子鍋/},
+ {name:'BOSCH 6系列 嵌入式微波燒烤爐',model:'BEL554MS0U',match:/微波/},
+ {name:'BOSCH 8系列 嵌入式蒸烤爐 極緻黑',model:'HSG7584B1',match:/蒸烤/}
+];
 const localToday=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const defaults={...structuredClone(DEFAULT_SETTINGS),startDate:getMonday(localToday)};
 let state={version:1,settings:defaults,inventory:[],plan:null,checked:{}};
@@ -27,11 +36,29 @@ function validateState(raw){
   aggregateShopping(raw.plan,raw.inventory);
   return {version:1,settings:structuredClone(s),inventory:raw.inventory.map(i=>({ingredientId:i.ingredientId,quantity:Number(i.quantity)})),plan:structuredClone(raw.plan),checked:Object.fromEntries(Object.entries(raw.checked).filter(([k,v])=>ingredients.has(k)&&v===true))};
 }
-try{const saved=localStorage.getItem(STORAGE_KEY);if(saved)state=validateState(JSON.parse(saved));}catch(e){startupError='先前儲存的資料無法讀取，已載入預設菜單。請以備份還原。';}
-if(!state.plan)state.plan=generatePlan(state.settings,state.inventory);
+function readStored(key){try{const value=localStorage.getItem(key);return value===null?null:JSON.parse(value);}catch(e){return null;}}
+const previousState=readStored(STORAGE_KEY);
+if(previousState){try{state=validateState(previousState);}catch(e){startupError='先前的菜單無法完整還原，已保留可讀取的偏好與冰箱紀錄；請重新產生菜單。';}}
+// A damaged or outdated menu must never erase a separate valid pantry snapshot.
+const savedInventory=readStored(INVENTORY_KEY);
+const recoveredInventory=sanitizeInventory(savedInventory?.version===1&&Array.isArray(savedInventory.items)?savedInventory.items:previousState?.inventory,ingredientIds);
+if(JSON.stringify(state.inventory)!==JSON.stringify(recoveredInventory))state.checked={};
+state.inventory=recoveredInventory;
+let draftSettings=restoreDraft(readStored(SETTINGS_DRAFT_KEY),previousState?.settings,defaults);
+let pantryFormDraft=sanitizePantryDraft(readStored(PANTRY_DRAFT_KEY),ingredientIds);
+if(!state.plan){
+ try{state.settings=draftToSettings(draftSettings,defaults);state.plan=generatePlan(state.settings,state.inventory);}
+ catch(e){state.settings=structuredClone(defaults);state.plan=generatePlan(state.settings,state.inventory);startupError='已保留你輸入的設定與冰箱紀錄。目前設定無法產生菜單，請調整後再套用。';}
+}
 
 function save(){
-  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));$('#save-state').innerHTML='<i></i> 已自動儲存';storageAvailable=true;}
+  try{
+    localStorage.setItem(SETTINGS_DRAFT_KEY,JSON.stringify({version:PREFERENCES_VERSION,draft:draftSettings}));
+    localStorage.setItem(INVENTORY_KEY,JSON.stringify({version:1,items:state.inventory}));
+    localStorage.setItem(PANTRY_DRAFT_KEY,JSON.stringify(pantryFormDraft));
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+    $('#save-state').innerHTML='<i></i> 已自動儲存';storageAvailable=true;
+  }
   catch(e){storageAvailable=false;$('#save-state').textContent='暫時無法儲存';showError('瀏覽器儲存空間無法使用，請匯出備份以保留目前菜單。');}
 }
 function toast(message){clearTimeout(toastTimeout);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimeout=setTimeout(()=>$('#toast').classList.remove('visible'),3000);}
@@ -40,8 +67,12 @@ function clearError(){$('#error-banner').hidden=true;}
 function meals(){return state.plan.days.flatMap(d=>d.meals);}
 function quantity(n,unit){return `${formatQty(n,unit)} ${unit}`;}
 function shortDate(date){return date.slice(5).replace('-','/');}
-function readSettings(){const f=new FormData($('#settings-form'));return {...state.settings,weekdayPeople:Number(f.get('weekdayPeople')),weekendPeople:Number(f.get('weekendPeople')),slots:f.getAll('slots'),maxMinutes:Number(f.get('maxMinutes')),avoid:String(f.get('avoid')||'').split(/[、,，\n;；]+/).map(x=>x.trim()).filter(Boolean),favorites:f.getAll('favorites'),riceMeals:Number(f.get('riceMeals')),pastaMeals:Number(f.get('pastaMeals')),seed:(state.settings.seed||0)+1};}
-function fillSettings(){const s=state.settings;$('#weekday-people').value=s.weekdayPeople;$('#weekend-people').value=s.weekendPeople;$('#max-minutes').value=s.maxMinutes;$('#avoid').value=s.avoid.join('、');$('#rice-meals').value=s.riceMeals;$('#pasta-meals').value=s.pastaMeals;$$('[name=slots]').forEach(x=>x.checked=s.slots.includes(x.value));$$('[name=favorites]').forEach(x=>x.checked=s.favorites.includes(x.value));}
+function captureSettingsDraft(){const f=new FormData($('#settings-form'));draftSettings={weekdayPeople:String(f.get('weekdayPeople')??''),weekendPeople:String(f.get('weekendPeople')??''),slots:f.getAll('slots'),maxMinutes:String(f.get('maxMinutes')??''),avoidText:String(f.get('avoid')??''),favorites:f.getAll('favorites'),riceMeals:String(f.get('riceMeals')??''),pastaMeals:String(f.get('pastaMeals')??'')};return draftSettings;}
+function readSettings(){return {...draftToSettings(captureSettingsDraft(),state.settings),seed:(state.settings.seed||0)+1};}
+function fillSettings(){const s=draftSettings;$('#weekday-people').value=s.weekdayPeople;$('#weekend-people').value=s.weekendPeople;$('#max-minutes').value=s.maxMinutes;$('#avoid').value=s.avoidText;$('#rice-meals').value=s.riceMeals;$('#pasta-meals').value=s.pastaMeals;$$('[name=slots]').forEach(x=>x.checked=s.slots.includes(x.value));$$('[name=favorites]').forEach(x=>x.checked=s.favorites.includes(x.value));}
+function renderDraftNotice(){const pending=!draftMatchesSettings(draftSettings,state.settings);$('#plan-notice').textContent='設定已保存，按「產生一週菜單」套用到本週；目前菜單與已煮標記會先保留。';$('#plan-notice').hidden=!pending;}
+function capturePantryDraft(){pantryFormDraft={ingredientId:$('#pantry-ingredient').value,quantity:$('#pantry-quantity').value};}
+function fillPantryDraft(){$('#pantry-ingredient').value=pantryFormDraft.ingredientId;$('#pantry-quantity').value=pantryFormDraft.quantity;$('#pantry-unit').textContent=ingredients.get(pantryFormDraft.ingredientId)?.unit||'g';}
 function reconcileChecked(before,after){const old=new Map(before.map(r=>[r.ingredientId,r.toBuy]));state.checked=Object.fromEntries(after.filter(r=>r.toBuy>0&&state.checked[r.ingredientId]&&old.get(r.ingredientId)===r.toBuy).map(r=>[r.ingredientId,true]));}
 function updatePlan(newPlan,newSettings=state.settings){const before=aggregateShopping(state.plan,state.inventory);state.plan=newPlan;state.settings=newSettings;reconcileChecked(before,aggregateShopping(state.plan,state.inventory));clearError();save();render();}
 
@@ -71,9 +102,10 @@ function renderShopping(){
  $('#shopping-list').innerHTML=categories.map(c=>`<section class="shopping-group"><h3>${esc(c)} <span>${needed.filter(r=>r.category===c).length} 項</span></h3>${needed.filter(r=>r.category===c).map(r=>item(r)).join('')}</section>`).join('')+(covered.length?`<section class="shopping-group"><h3>冰箱已經有了 <span>不用再買</span></h3>${covered.map(r=>item(r,true)).join('')}</section>`:'')+(remaining===0?'<div class="empty-state"><h3>這週的餐桌，完成了。</h3><p>所有餐點都已煮好，目前不需要採買。取消任一餐的標記，就會重新計算。</p></div>':'');
  $('#clear-checked').disabled=checked===0;
 }
-function render(){const end=addDays(state.plan.startDate,6);$('#date-range').textContent=`${shortDate(state.plan.startDate)} — ${shortDate(end)}`;$('#start-date').value=state.plan.startDate;$('#week-title').textContent=`${state.plan.startDate.slice(0,4)} 年・一週菜單`;renderMenu();renderPantry();renderShopping();}
+function render(){const end=addDays(state.plan.startDate,6);$('#date-range').textContent=`${shortDate(state.plan.startDate)} — ${shortDate(end)}`;$('#start-date').value=state.plan.startDate;$('#week-title').textContent=`${state.plan.startDate.slice(0,4)} 年・一週菜單`;renderMenu();renderPantry();renderShopping();renderDraftNotice();}
 function setTab(tab){activeTab=tab;$$('.tab').forEach(b=>{const selected=b.dataset.tab===tab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;});$('#menu-view').hidden=tab!=='menu';$('#shopping-view').hidden=tab!=='shopping';}
 function openRecipe(key){const m=meals().find(x=>x.key===key);if(!m)return;currentMealKey=key;renderRecipe();$('#recipe-dialog').showModal();}
+function recipeEquipment(recipe){const tools=kitchenEquipment.filter(item=>item.match.test(recipe.equipment));return `<div class="recipe-appliances"><strong>使用家中設備</strong>${tools.map(item=>`<span>${esc(item.name)}${item.model?` <b>${esc(item.model)}</b>`:''}</span>`).join('')}${recipe.ingredients.some(i=>i.ingredientId==='rice')?'<small>熟飯可事先用電子鍋準備；另預留煮飯時間。</small>':''}</div>`;}
 function openReplacement(key){
  const m=meals().find(x=>x.key===key);if(!m)return;
  replacementMealKey=key;replacementQuery='';replacementProtein='';
@@ -100,10 +132,13 @@ function applyReplacement(recipeId){
  catch(err){$('#replacement-error').textContent=err.message;$('#replacement-error').hidden=false;}
 }
 function renderRecipe(){const m=meals().find(x=>x.key===currentMealKey);if(!m)return;const r=recipeById(m.recipeId),fb=state.settings.feedback[r.id]||{};
- $('#recipe-content').innerHTML=`<p class="eyebrow">A MEAL TO LOOK FORWARD TO</p><h2 id="recipe-dialog-title">${esc(r.title)}</h2><div class="recipe-dialog-meta"><span>${m.servings} 人份</span><span>◷ 約 ${r.minutes} 分鐘</span><span>${esc(r.equipment)}</span></div><div class="recipe-columns"><section><h3>準備食材</h3><div class="ingredient-list">${r.ingredients.map(item=>{const i=ingredients.get(item.ingredientId);return `<div class="recipe-ingredient"><span>${esc(i.name)}</span><span>${quantity(item.quantity*m.servings/r.baseServings,i.unit)}</span></div>`;}).join('')}</div></section><section><h3>簡單做，上桌吃</h3><ol class="recipe-steps">${r.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol></section></div><section class="feedback-section"><h3>這道菜，吃起來如何？</h3><p>喜好與耗時回饋會影響下次配餐；份量回饋留作你的調整參考。</p><div class="feedback-buttons"><button class="feedback-button ${fb.liked===true?'selected':''}" data-feedback="like" aria-pressed="${fb.liked===true}">♡ 喜歡這道</button><button class="feedback-button dislike ${fb.liked===false?'selected':''}" data-feedback="dislike" aria-pressed="${fb.liked===false}">較不喜歡</button><button class="feedback-button ${fb.slow?'selected':''}" data-feedback="slow" aria-pressed="${!!fb.slow}">備餐太久</button></div><div class="feedback-buttons" style="margin-top:8px">${[['less','份量太多'],['right','份量剛好'],['more','份量不足']].map(([v,l])=>`<button class="feedback-button ${fb.portion===v?'selected':''}" data-portion="${v}" aria-pressed="${fb.portion===v}">${l}</button>`).join('')}</div></section><p class="recipe-source">份量為食譜估算，可依食量調整。使用蒸烤爐、氣炸鍋與調理包時，請配合設備與包裝指引確認熟度。此食譜來自內建食譜庫。</p>`;
+ $('#recipe-content').innerHTML=`<p class="eyebrow">A MEAL TO LOOK FORWARD TO</p><h2 id="recipe-dialog-title">${esc(r.title)}</h2><div class="recipe-dialog-meta"><span>${m.servings} 人份</span><span>◷ 約 ${r.minutes} 分鐘</span><span>${esc(r.equipment)}</span></div>${recipeEquipment(r)}<div class="recipe-columns"><section><h3>準備食材</h3><div class="ingredient-list">${r.ingredients.map(item=>{const i=ingredients.get(item.ingredientId);return `<div class="recipe-ingredient"><span>${esc(i.name)}</span><span>${quantity(item.quantity*m.servings/r.baseServings,i.unit)}</span></div>`;}).join('')}</div></section><section><h3>簡單做，上桌吃</h3><ol class="recipe-steps">${r.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol></section></div><section class="feedback-section"><h3>這道菜，吃起來如何？</h3><p>喜好與耗時回饋會影響下次配餐；份量回饋留作你的調整參考。</p><div class="feedback-buttons"><button class="feedback-button ${fb.liked===true?'selected':''}" data-feedback="like" aria-pressed="${fb.liked===true}">♡ 喜歡這道</button><button class="feedback-button dislike ${fb.liked===false?'selected':''}" data-feedback="dislike" aria-pressed="${fb.liked===false}">較不喜歡</button><button class="feedback-button ${fb.slow?'selected':''}" data-feedback="slow" aria-pressed="${!!fb.slow}">備餐太久</button></div><div class="feedback-buttons" style="margin-top:8px">${[['less','份量太多'],['right','份量剛好'],['more','份量不足']].map(([v,l])=>`<button class="feedback-button ${fb.portion===v?'selected':''}" data-portion="${v}" aria-pressed="${fb.portion===v}">${l}</button>`).join('')}</div></section><p class="recipe-source">份量為食譜估算，可依食量調整。使用蒸烤爐、氣炸鍋與調理包時，請配合設備與包裝指引確認熟度。此食譜來自內建食譜庫。</p>`;
 }
 
-$('#settings-form').addEventListener('submit',e=>{e.preventDefault();try{const s=readSettings();const next=generatePlan(s,state.inventory,state.plan);updatePlan(next,s);toast('一週菜單已安排好，採買清單也更新了。');}catch(err){showError(err.message);}});
+function saveSettingsDraft(){captureSettingsDraft();save();renderDraftNotice();}
+$('#settings-form').addEventListener('input',saveSettingsDraft);
+$('#settings-form').addEventListener('change',saveSettingsDraft);
+$('#settings-form').addEventListener('submit',e=>{e.preventDefault();try{const s=readSettings();const next=generatePlan(s,state.inventory,state.plan);updatePlan(next,s);toast('一週菜單已安排好，採買清單也更新了。');}catch(err){save();showError(err.message);}});
 function changeWeek(date){try{const monday=getMonday(date),s={...state.settings,startDate:monday,seed:(state.settings.seed||0)+1};const plan=generatePlan(s,state.inventory);if(monday!==state.plan.startDate)state.checked={};updatePlan(plan,s);toast(`已安排 ${shortDate(monday)} 開始的一週菜單。`);}catch(e){showError(e.message);}}
 $('#prev-week').addEventListener('click',()=>changeWeek(addDays(state.plan.startDate,-7)));
 $('#next-week').addEventListener('click',()=>changeWeek(addDays(state.plan.startDate,7)));
@@ -117,8 +152,10 @@ $('#replacement-random').addEventListener('click',()=>applyReplacement());
 $('#replacement-search').addEventListener('input',e=>{replacementQuery=e.target.value.trim();renderReplacementOptions();});
 $('#replacement-filters').addEventListener('click',e=>{const b=e.target.closest('[data-protein]');if(!b)return;replacementProtein=b.dataset.protein;$$('[data-protein]').forEach(x=>{const on=x.dataset.protein===replacementProtein;x.classList.toggle('selected',on);x.setAttribute('aria-pressed',String(on));});renderReplacementOptions();});
 $('#pantry-ingredient').innerHTML='<option value="" disabled selected>選一項食材</option>'+[...new Set(INGREDIENTS.map(i=>i.category))].map(c=>`<optgroup label="${esc(c)}">${INGREDIENTS.filter(i=>i.category===c).map(i=>`<option value="${i.id}">${esc(i.name)}</option>`).join('')}</optgroup>`).join('');
-$('#pantry-ingredient').addEventListener('change',()=>{$('#pantry-unit').textContent=ingredients.get($('#pantry-ingredient').value)?.unit||'g';});
-$('#pantry-form').addEventListener('submit',e=>{e.preventDefault();const id=$('#pantry-ingredient').value,q=Number($('#pantry-quantity').value);if(!ingredients.has(id)||!Number.isFinite(q)||q<=0||q>100000){showError('請選擇食材並填入有效庫存數量。');return;}const old=aggregateShopping(state.plan,state.inventory),found=state.inventory.find(x=>x.ingredientId===id);if(found&&found.quantity+q>1000000){showError('這項庫存已超過可設定數量。');return;}if(found)found.quantity=Math.round((found.quantity+q)*100)/100;else state.inventory.push({ingredientId:id,quantity:Math.round(q*100)/100});reconcileChecked(old,aggregateShopping(state.plan,state.inventory));clearError();save();renderPantry();renderShopping();renderMenu();$('#pantry-quantity').value='';toast('庫存已加入，採買數量已自動扣抵。');});
+$('#pantry-ingredient').addEventListener('change',()=>{$('#pantry-unit').textContent=ingredients.get($('#pantry-ingredient').value)?.unit||'g';capturePantryDraft();save();});
+$('#pantry-quantity').addEventListener('input',()=>{capturePantryDraft();save();});
+$('#pantry-quantity').addEventListener('change',()=>{capturePantryDraft();save();});
+$('#pantry-form').addEventListener('submit',e=>{e.preventDefault();const id=$('#pantry-ingredient').value,q=Number($('#pantry-quantity').value);if(!ingredients.has(id)||!Number.isFinite(q)||q<=0||q>100000){showError('請選擇食材並填入有效庫存數量。');return;}const old=aggregateShopping(state.plan,state.inventory),found=state.inventory.find(x=>x.ingredientId===id);if(found&&found.quantity+q>1000000){showError('這項庫存已超過可設定數量。');return;}if(found)found.quantity=Math.round((found.quantity+q)*100)/100;else state.inventory.push({ingredientId:id,quantity:Math.round(q*100)/100});reconcileChecked(old,aggregateShopping(state.plan,state.inventory));$('#pantry-quantity').value='';capturePantryDraft();clearError();save();renderPantry();renderShopping();renderMenu();toast('庫存已加入，採買數量已自動扣抵。');});
 $('#pantry-list').addEventListener('click',e=>{const button=e.target.closest('[data-remove]');if(!button)return;const old=aggregateShopping(state.plan,state.inventory);state.inventory=state.inventory.filter(x=>x.ingredientId!==button.dataset.remove);reconcileChecked(old,aggregateShopping(state.plan,state.inventory));save();renderPantry();renderShopping();renderMenu();toast('已移除庫存，採買清單已重算。');});
 $('#shopping-list').addEventListener('change',e=>{if(e.target.dataset.buy){state.checked[e.target.dataset.buy]=e.target.checked;save();renderShopping();$(`#buy-${e.target.dataset.buy}`)?.focus();}});
 $('#clear-checked').addEventListener('click',()=>{state.checked={};save();renderShopping();toast('已清除採買勾選。');});
@@ -127,7 +164,8 @@ $('#print-button').addEventListener('click',()=>window.print());
 $('#recipe-content').addEventListener('click',e=>{const b=e.target.closest('[data-feedback],[data-portion]');if(!b)return;const m=meals().find(x=>x.key===currentMealKey);const fb={...(state.settings.feedback[m.recipeId]||{})};if(b.dataset.portion){if(fb.portion===b.dataset.portion)delete fb.portion;else fb.portion=b.dataset.portion;}else if(b.dataset.feedback==='slow')fb.slow=!fb.slow;else{const val=b.dataset.feedback==='like';if(fb.liked===val)delete fb.liked;else fb.liked=val;}state.settings.feedback[m.recipeId]=fb;save();renderRecipe();renderMenu();$('#recipe-content').querySelector(b.dataset.portion?`[data-portion="${b.dataset.portion}"]`:`[data-feedback="${b.dataset.feedback}"]`)?.focus();});
 $$('dialog').forEach(d=>{d.querySelector('.dialog-close').addEventListener('click',()=>d.close());d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}});});
 $('#help-button').addEventListener('click',()=>$('#help-dialog').showModal());
-$('#backup-button').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`weekly-table-${state.plan.startDate}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('已匯出菜單、庫存與回饋備份。');});
+$('#backup-button').addEventListener('click',()=>{captureSettingsDraft();capturePantryDraft();const backup={...state,preferences:{version:PREFERENCES_VERSION,draft:draftSettings},pantryDraft:pantryFormDraft};const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`weekly-table-${state.plan.startDate}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('已匯出菜單、設定、庫存與回饋備份。');});
 $('#import-button').addEventListener('click',()=>$('#import-file').click());
-$('#import-file').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>1000000)throw new Error('備份檔案過大，請選擇本工具匯出的 JSON。');const imported=validateState(JSON.parse(await file.text()));state=imported;clearError();save();fillSettings();render();toast('已還原菜單、庫存與喜好回饋。');}catch(err){showError(err instanceof SyntaxError?'這不是有效的 JSON 備份檔案。':err.message);}finally{e.target.value='';}});
-fillSettings();render();setTab('menu');save();if(startupError)showError(startupError);
+$('#import-file').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>1000000)throw new Error('備份檔案過大，請選擇本工具匯出的 JSON。');const raw=JSON.parse(await file.text()),imported=validateState(raw);state=imported;draftSettings=restoreDraft(raw.preferences?.version===PREFERENCES_VERSION?raw.preferences:{version:PREFERENCES_VERSION,draft:settingsToDraft(imported.settings)},null,defaults);pantryFormDraft=sanitizePantryDraft(raw.pantryDraft,ingredientIds);clearError();save();fillSettings();fillPantryDraft();render();toast('已還原菜單、設定、庫存與喜好回饋。');}catch(err){showError(err instanceof SyntaxError?'這不是有效的 JSON 備份檔案。':err.message);}finally{e.target.value='';}});
+$('#kitchen-equipment-list').innerHTML=kitchenEquipment.map(item=>`<li><span>${esc(item.name)}</span>${item.model?`<strong>${esc(item.model)}</strong>`:''}</li>`).join('');
+fillSettings();fillPantryDraft();render();setTab('menu');save();if(startupError)showError(startupError);

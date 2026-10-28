@@ -11,11 +11,11 @@ const recipe = (id,title,cuisine,protein,minutes,equipment,starch,items,steps,ta
 export const RECIPES = [
  recipe('lemon-chicken','檸檬香煎雞腿佐花椰菜','西式','雞肉',25,'IH 爐','low',[['chicken',360],['broccoli',300],['lemon',1],['garlic',10],['oil',15],['salt',2],['pepper',1]],['雞腿擦乾，以鹽、黑胡椒與檸檬汁醃一下。','平底鍋加油，雞皮朝下煎香，再翻面煎至全熟。','花椰菜蒸熟，與雞腿盛盤，淋上剩餘檸檬汁。']),
  recipe('steamed-halibut','薑蔥蒸比目魚與青江菜','台式','魚肉',20,'蒸烤爐','low',[['halibut',360],['bokchoy',300],['ginger',15],['scallion',20],['soy',15],['oil',5]],['比目魚放入蒸盤，鋪上薑絲，青江菜洗淨備用。','蒸烤爐以蒸氣模式蒸至魚肉全熟，青菜另盤蒸熟。','魚肉淋醬油與少許油，撒蔥絲，搭配青江菜。']),
- recipe('beef-mushroom','香煎牛小排與蒜香菇','西式','牛肉',30,'IH 爐＋蒸烤爐','low',[['beef',360],['mushroom',250],['zucchini',250],['garlic',12],['oil',15],['salt',2],['pepper',1]],['牛小排擦乾調味，以 IH 平底鍋將兩面煎上色。','依蒸烤爐探針及食材安全指引完成中心熟度，靜置後切片。','原鍋炒香蒜末，加入菇與櫛瓜炒熟後盛盤。']),
+ recipe('beef-mushroom','香煎牛小排與蒜香菇','美式','牛肉',30,'IH 爐＋蒸烤爐','low',[['beef',360],['mushroom',250],['zucchini',250],['garlic',12],['oil',15],['salt',2],['pepper',1]],['牛小排擦乾調味，以 IH 平底鍋將兩面煎上色。','依蒸烤爐探針及食材安全指引完成中心熟度，靜置後切片。','原鍋炒香蒜末，加入菇與櫛瓜炒熟後盛盤。']),
  recipe('roasted-lamb','蒜香烤羊排與櫛瓜','西式','羊肉',35,'蒸烤爐','low',[['lamb',400],['zucchini',300],['carrot',150],['garlic',15],['oil',15],['salt',2],['pepper',1]],['羊排用蒜末、橄欖油、鹽與黑胡椒抹勻。','羊排與切塊蔬菜放入蒸烤爐，以烘烤模式烤至適當熟度。','使用烤箱收色功能完成表面，依食材安全指引確認熟度後靜置盛盤。']),
  recipe('tomato-egg-tofu','番茄滑蛋豆腐煲','台式','蛋豆',20,'IH 爐','low',[['egg',4],['tofu',300],['tomato',300],['scallion',15],['oil',10],['salt',2]],['番茄與豆腐切塊，雞蛋打散。','鍋中加油，先炒番茄出汁，再加入豆腐與少量水煮透。','倒入蛋液輕推至完全凝固，鹽調味後撒蔥花。']),
  recipe('shrimp-egg','蝦仁蒸蛋與燙菠菜','台式','海鮮',25,'蒸烤爐','low',[['shrimp',240],['egg',4],['spinach',300],['soy',10],['oil',5]],['蛋液加適量水與醬油，過篩倒入耐熱碗，放上蝦仁。','用蒸烤爐蒸至蛋液完全凝固、蝦仁全熟。','菠菜燙熟瀝水，拌少許油，搭配蒸蛋。']),
- recipe('salmon-broccoli','香烤鮭魚與雙色蔬菜','西式','魚肉',25,'氣炸鍋','low',[['salmon',360],['broccoli',250],['carrot',150],['lemon',1],['oil',10],['salt',2],['pepper',1]],['鮭魚以鹽、黑胡椒調味，蔬菜切小塊拌油。','魚與蔬菜放入氣炸鍋，視厚度烹調並中途檢查。','確認魚肉與蔬菜熟透，取出擠檸檬汁。']),
+ recipe('salmon-broccoli','香烤鮭魚與雙色蔬菜','美式','魚肉',25,'氣炸鍋','low',[['salmon',360],['broccoli',250],['carrot',150],['lemon',1],['oil',10],['salt',2],['pepper',1]],['鮭魚以鹽、黑胡椒調味，蔬菜切小塊拌油。','魚與蔬菜放入氣炸鍋，視厚度烹調並中途檢查。','確認魚肉與蔬菜熟透，取出擠檸檬汁。']),
  recipe('ginger-pork','薑香里肌炒高麗菜','台式','豬肉',20,'IH 爐','low',[['pork',320],['cabbage',400],['ginger',15],['soy',20],['oil',10]],['里肌切薄片，拌少許醬油；高麗菜切片。','熱鍋下油與薑絲，加入豬肉炒至全熟。','放入高麗菜與剩餘醬油，拌炒至軟熟。']),
  recipe('garlic-shrimp','蒜香蝦仁櫛瓜盤','西式','海鮮',15,'IH 爐','low',[['shrimp',320],['zucchini',350],['garlic',15],['lemon',1],['oil',15],['salt',2],['pepper',1]],['蝦仁擦乾，櫛瓜切半月片，蒜頭切末。','油鍋炒香蒜末，先炒櫛瓜，再加入蝦仁炒熟。','鹽與黑胡椒調味，擠檸檬汁後盛盤。']),
  recipe('chicken-salad','溫雞胸毛豆沙拉','西式','雞肉',20,'IH 爐','low',[['breast',320],['edamame',150],['lettuce',200],['cucumber',150],['lemon',1],['oil',15],['salt',2]],['雞胸以鹽調味，放入微滾水中煮至全熟後切片。','毛豆煮熟，生菜與小黃瓜洗淨切好。','檸檬汁與橄欖油拌成醬汁，將食材盛盤拌勻。']),
@@ -26,7 +26,7 @@ export const RECIPES = [
  recipe('halibut-tomato','番茄菇菇燉比目魚','西式','魚肉',25,'IH 爐','low',[['halibut',360],['tomato',300],['mushroom',200],['onion',100],['garlic',10],['oil',10],['salt',2]],['洋蔥、番茄切塊，蒜頭切末。','油鍋炒香洋蔥與蒜末，加入番茄與菇煮出湯汁。','放入比目魚，加蓋燉至魚肉全熟，再以鹽調味。']),
  recipe('shrimp-tofu','鮮蝦豆腐青菜湯','台式','海鮮',15,'IH 爐','low',[['shrimp',280],['tofu',300],['bokchoy',300],['ginger',10],['salt',2]],['豆腐切塊、青江菜洗淨，薑切絲。','水煮滾加入豆腐與薑絲，再放蝦仁煮熟。','加入青江菜煮軟，以鹽調味後盛碗。']),
  recipe('egg-salad','鮪魚水煮蛋沙拉','西式','魚肉',15,'IH 爐','low',[['tuna',2],['egg',4],['lettuce',250],['cucumber',200],['lemon',1],['oil',15]],['雞蛋煮至蛋黃全熟，冷卻剝殼切半。','生菜與小黃瓜洗淨切好，鮪魚瀝乾。','所有食材盛盤，拌入橄欖油與檸檬汁。']),
- recipe('air-chicken','香烤雞腿與高麗菜','西式','雞肉',30,'氣炸鍋＋IH 爐','low',[['chicken',380],['cabbage',350],['garlic',12],['oil',15],['salt',2],['pepper',1]],['雞腿以蒜末、鹽、黑胡椒與少許油抹勻。','雞腿放氣炸鍋烤至中心全熟，中途翻面檢查。','高麗菜以 IH 爐炒熟，與雞腿一起盛盤。']),
+ recipe('air-chicken','香烤雞腿與高麗菜','美式','雞肉',30,'氣炸鍋＋IH 爐','low',[['chicken',380],['cabbage',350],['garlic',12],['oil',15],['salt',2],['pepper',1]],['雞腿以蒜末、鹽、黑胡椒與少許油抹勻。','雞腿放氣炸鍋烤至中心全熟，中途翻面檢查。','高麗菜以 IH 爐炒熟，與雞腿一起盛盤。']),
  recipe('rice-chicken','雞肉調理包飯與青菜','台式','雞肉',15,'微波爐＋IH 爐','rice',[['chicken-kit',2],['rice',300],['bokchoy',300],['oil',5]],['使用預先煮好、妥善保存的白飯或即食飯，充分復熱。','雞肉調理包依包裝指示充分加熱。','青江菜燙熟拌油，搭配白飯與雞肉調理包。'],'調理包套餐'),
  recipe('rice-beef','牛肉調理包飯與花椰菜','台式','牛肉',15,'微波爐＋IH 爐','rice',[['beef-kit',2],['rice',300],['broccoli',300]],['使用預先煮好、妥善保存的白飯或即食飯，充分復熱。','牛肉調理包依包裝指示充分加熱。','花椰菜蒸熟，與白飯及牛肉調理包盛盤。'],'調理包套餐'),
  recipe('rice-pork','豬肉調理包飯與菠菜','台式','豬肉',15,'微波爐＋IH 爐','rice',[['pork-kit',2],['rice',300],['spinach',300],['sesame',5]],['使用預先煮好、妥善保存的白飯或即食飯，充分復熱。','豬肉調理包依包裝指示充分加熱。','菠菜燙熟撒芝麻，與飯及調理包搭配。'],'調理包套餐'),
@@ -46,7 +46,7 @@ function parseDate(value){
 }
 export function addDays(value,n){const d=parseDate(value);d.setUTCDate(d.getUTCDate()+n);return iso(d);}
 export function getMonday(value=iso(new Date())){const d=parseDate(value);d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return iso(d);}
-export const DEFAULT_SETTINGS = {startDate:getMonday(),weekdayPeople:2,weekendPeople:2,slots:['dinner'],maxMinutes:35,avoid:['青椒','茄子','酪梨','照燒','漢堡排'],favorites:[],riceMeals:2,pastaMeals:1,feedback:{},seed:0};
+export const DEFAULT_SETTINGS = {startDate:getMonday(),weekdayPeople:2,weekendPeople:2,slots:['lunch','dinner'],maxMinutes:60,avoid:['青椒','茄子','酪梨','照燒','番茄','豬肉','雞肉調理包'],favorites:['義式','西式'],riceMeals:2,pastaMeals:1,feedback:{},seed:0};
 const round = n => Math.round((n+Number.EPSILON)*100)/100;
 export function formatQty(value,unit='g'){const n=Number(value);if(!Number.isFinite(n))return '0';return String(round(n));}
 function settingsWithDefaults(input={}){
