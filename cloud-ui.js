@@ -5,14 +5,15 @@ import {settingsToDraft} from './preferences.js';
 
 const $=selector=>document.querySelector(selector);
 const clone=value=>structuredClone(value);
-const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
+const equal=(a,b)=>JSON.stringify(canonical(a))===JSON.stringify(canonical(b));
 const DRAFT_PREFIX='weekly-table-cloud-drafts-v1:';
 const PENDING_PREFIX='weekly-table-cloud-pending-v1:';
 const EDIT_CONTROLS='#settings-form [type=submit],#pantry-form [type=submit],[data-remove],[data-swap],[data-cooked],[data-buy],#clear-checked,[data-feedback],[data-portion],#import-button,#prev-week,#next-week,#start-date,#replacement-random,[data-select-recipe]';
 
 /** Keeps personal browser data separate from the signed-in household. */
 export function installCloudSync(adapter,{config=firebaseConfig,transport=createFirebaseSync}={}){
- let client=null,user=null,home=null,base=null,revision=0,phase='connecting',busy=false,authBusy=false,unconfirmed=null;
+ let client=null,user=null,home=null,base=null,revision=0,phase='connecting',busy=false,authBusy=false,unconfirmed=null,destroyed=false;
  let confirmedReceipts=new Set();
  let renderedPreferences=null,accountDraft=null,connectingDraftBase=null,preferenceTimer,draftOrigin=null,draftBlocked=false,connectionGeneration=0,bootGeneration=0,everHadData=false;
  let personal=adapter.captureLocal();
@@ -48,7 +49,11 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
   const current=user&&navigator.onLine===false?'offline':busy||authBusy?'saving':user&&unconfirmed&&base?'unconfirmed':phase;
   const labels={connecting:'正在連線，請稍候…',unconfigured:'雲端同步尚未開通；此裝置資料仍會自動保存。','signed-out':'尚未登入。目前使用此裝置的個人資料。',forbidden:'此帳號尚未加入共用餐桌，請管理者加入你的 Google 帳號。','needs-home':'正在準備家庭空間…','needs-initialization':home?.isOwner?'請選擇第一份共用菜單。':'請家庭管理者先建立共用菜單。',saving:'正在儲存到雲端，完成後即可關閉頁面。',synced:'已同步。兩人看到同一份最新菜單。',offline:'目前離線。已載入的菜單可查看，恢復連線後再修改。',error:'連線未完成，請重新連線；此裝置原有資料仍會保留。'};
   labels.unconfirmed=unconfirmed?.reviewOnly?'上次儲存已超過可自動確認的範圍。請先核對最新菜單與庫存，再繼續操作。':'上次儲存結果尚未確認。請先確認，避免重複加入庫存或重複操作。';
-  $('#cloud-status').textContent=current==='synced'&&pendingPreferences()?'菜單已同步；尚未同步的設定保留在此裝置，請確認後修改或產生菜單。':labels[current]||labels.error;
+  const pending=current==='synced'&&pendingPreferences();
+  const detail=pending?(draftBlocked?'設定有衝突，已保留此裝置的輸入。請確認最新共用內容後，再修改或產生菜單。':'菜單已同步；有效設定會自動補送，每分鐘再次檢查。'):labels[current]||labels.error;
+  const compact={connecting:'連線中',unconfigured:'使用此裝置儲存','signed-out':'尚未登入',forbidden:'帳號尚未加入','needs-home':'準備共用空間','needs-initialization':'待建立共用菜單',saving:'同步中',synced:'已同步',offline:'目前離線',error:'同步未完成',unconfirmed:unconfirmed?.reviewOnly?'儲存待核對':'儲存結果尚未確認'};
+  $('#cloud-status').textContent=pending?(draftBlocked?'設定衝突，待確認':'設定待同步'):compact[current]||compact.error;
+  $('#cloud-status').title=detail;$('#cloud-status').ariaLabel=detail;
   $('.cloud-panel').dataset.phase=current;
   $('#cloud-account').hidden=!user;
   $('#cloud-account').textContent=user?`目前帳號：${user.email}`:'';
@@ -67,14 +72,14 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
   $('#storage-description').textContent=user&&base?'共用資料儲存在雲端；未完成的輸入保留在此裝置。':'尚未使用共用菜單，原有資料保存在此瀏覽器。';
   const save=$('#save-state');
   save.dataset.phase=current==='saving'?'busy':current;
-  if(user)save.innerHTML=`<i></i> ${current==='synced'?(pendingPreferences()?'設定待同步':'已同步'):current==='saving'?'儲存中':current==='offline'?'目前離線':'等待同步'}`;
+  if(user)save.innerHTML=`<i></i> ${current==='synced'?(pendingPreferences()?(draftBlocked?'設定待確認':'設定待同步'):'已同步'):current==='saving'?'儲存中':current==='offline'?'目前離線':'等待同步'}`;
   else if(!adapter.storageAvailable())save.textContent='暫時無法儲存';
   else save.innerHTML='<i></i> 已存於此裝置';
   lockControls();
  }
  function saveAccountDrafts(){
   if(!user)return false;
-  const saved={version:1,draft:clone(adapter.getDraft()),pantryDraft:clone(adapter.getPantryDraft()),basePreferences:clone(renderedPreferences||accountDraft?.basePreferences||connectingDraftBase)};
+  const saved={version:1,draft:clone(adapter.getDraft()),pantryDraft:clone(adapter.getPantryDraft()),basePreferences:clone(renderedPreferences||accountDraft?.basePreferences||connectingDraftBase),preferenceOrigin:draftOrigin?{preferences:clone(draftOrigin.snapshot.preferences)}:null,draftBlocked};
   if(!base)accountDraft=saved;
   try{localStorage.setItem(DRAFT_PREFIX+user.uid,JSON.stringify(saved));}
   catch(e){error('此裝置無法保存未完成的輸入。已同步的菜單仍保存在雲端。');}
@@ -86,12 +91,25 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
   const previous=first?accountDraft?.basePreferences:renderedPreferences;
   let draft=first?(accountDraft?.draft||base.preferences):adapter.getDraft();
   draft=clone(draft);
-  for(const [key,value] of Object.entries(base.preferences))if(!previous||equal(draft[key],previous[key])||equal(draft[key],value))draft[key]=clone(value);
+  if(first&&previous){
+   // Preserve the before-values of restored edits, even if the server changed
+   // while this device was closed. A same-field edit must conflict, not win.
+   const origin=accountDraft?.preferenceOrigin?.preferences||previous;
+   draftOrigin={snapshot:{...clone(base),preferences:validSharedPreferences(origin,base.preferences)},revision};
+   draftBlocked=accountDraft?.draftBlocked===true;
+  }
+  for(const [key,value] of Object.entries(base.preferences))if(!previous||equal(draft[key],previous[key])||equal(draft[key],value)){
+   draft[key]=clone(value);
+   if(draftOrigin)draftOrigin.snapshot.preferences[key]=clone(value);
+  }
   adapter.setState(adapter.validateState(clone(base.state)));
   adapter.setDraft(draft);
   if(first&&accountDraft?.pantryDraft)adapter.setPantryDraft(accountDraft.pantryDraft);
   renderedPreferences=clone(base.preferences);
+  if(!pendingPreferences()){draftOrigin=null;draftBlocked=false;}
+  if(first&&draftBlocked)error('先前的設定有衝突，已保留你的輸入。請確認最新共用內容後，再修改或產生菜單。');
   closeStaleDialogs();adapter.refresh();saveAccountDrafts();renderStatus();
+  if(first&&pendingPreferences()&&!draftBlocked){clearTimeout(preferenceTimer);preferenceTimer=setTimeout(syncDraft,700);}
  }
  function accept(snapshot,metadata={}){
   if(!user||!home)return;
@@ -109,7 +127,7 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
   clearTimeout(preferenceTimer);
   if(!user){action();adapter.persist();adapter.refresh();return;}
   if(!canEdit())throw new Error(navigator.onLine===false?'目前離線，請恢復連線後再修改共用菜單。':'共用餐桌還沒準備好，請等待同步完成。');
-  const identity=user.uid,token=connectionGeneration,start=clone(preferenceOrigin?.snapshot||base),startRevision=preferenceOrigin?.revision||revision,before=clone(adapter.getState());
+  const identity=user.uid,token=connectionGeneration,start=clone(preferenceOrigin?.snapshot||base),startRevision=revision,before=clone(adapter.getState());
   let submitted=false,completed=false,stagedMutation=null;
   busy=true;error('');renderStatus();
   try{
@@ -142,13 +160,13 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
  }
  async function syncDraft(){
   preferenceTimer=null;
-  if(!user||!base||!canEdit()||draftBlocked)return;
+  if(destroyed||!user||!base||!canEdit()||draftBlocked)return;
   const nextPreferences=validSharedPreferences(adapter.getDraft(),base.preferences);
   if(equal(nextPreferences,base.preferences))return;
   try{await mutate(()=>{},{sharePreferences:true,preferenceOrigin:draftOrigin||{snapshot:clone(base),revision}});}
   catch(e){/* The account panel keeps the retryable failure visible. */}
  }
- function noteDraftChange(){if(user&&base){if(!draftOrigin||draftBlocked)draftOrigin={snapshot:clone(base),revision};draftBlocked=false;}saveAccountDrafts();clearTimeout(preferenceTimer);if(user&&base)preferenceTimer=setTimeout(syncDraft,700);}
+ function noteDraftChange(){if(destroyed)return;if(user&&base){if(!draftOrigin||draftBlocked)draftOrigin={snapshot:clone(base),revision};draftBlocked=false;}saveAccountDrafts();clearTimeout(preferenceTimer);if(user&&base)preferenceTimer=setTimeout(syncDraft,700);}
  function onAuth(nextUser){
   clearTimeout(preferenceTimer);
   const previousUid=user?.uid||null,nextUid=nextUser?.uid||null;
@@ -204,18 +222,32 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
   catch(e){error(firebaseErrorMessage(e));phase='error';}
   finally{busy=false;renderStatus();}
  });
- $('#cloud-retry').addEventListener('click',async()=>{
-  if(busy)return;
-  if(!unconfirmed||!base){connect();return;}
-  if(unconfirmed.reviewOnly){setUnconfirmed(null);phase='synced';error('');renderStatus();return;}
+ async function recoverPending({automatic=false}={}){
+  if(destroyed||busy||authBusy||navigator.onLine===false)return;
+  if(!unconfirmed||!base){if(!automatic)connect();return;}
+  if(unconfirmed.reviewOnly){if(!automatic){setUnconfirmed(null);phase='synced';error('');renderStatus();}return;}
   const identity=user?.uid,token=connectionGeneration,mutation=unconfirmed.mutation;busy=true;error('');renderStatus();
   try{const result=await client.submit(mutation);if(token!==connectionGeneration||user?.uid!==identity)return;clearRecoveredPantry(mutation);setUnconfirmed(null);accept(result.snapshot,{revision:result.revision});phase='synced';adapter.toast('已確認上次儲存結果，資料已同步。');}
   catch(e){if(token!==connectionGeneration)return;recoverErrorSnapshot(e);if(confirmedReceipts.has(mutation.id)){clearRecoveredPantry(mutation);setUnconfirmed(null);phase='synced';}else{if(!uncertain(e)&&e.code!=='sync/expired-mutation')setUnconfirmed(null);if(e.code==='sync/expired-mutation'&&unconfirmed)setUnconfirmed({...unconfirmed,reviewOnly:true});phase=e.code==='sync/conflict'?'synced':'error';error(firebaseErrorMessage(e));}}
   finally{if(token===connectionGeneration){busy=false;if(base)hydrate();renderStatus();}}
- });
- window.addEventListener('beforeunload',event=>{if(busy||unconfirmed||user&&pendingPreferences()){event.preventDefault();event.returnValue='';}});
- window.addEventListener('online',()=>{if(user)renderStatus();});
- window.addEventListener('offline',()=>{if(user){phase='offline';renderStatus();}});
+ }
+ async function automaticSync(){
+  if(destroyed||!user||!home||!base||busy||authBusy||navigator.onLine===false)return;
+  if(unconfirmed){if(!unconfirmed.reviewOnly)await recoverPending({automatic:true});return;}
+  if(draftBlocked)return;
+  if(phase==='error'){await connect();return;}
+  await syncDraft();
+ }
+ const beforeUnload=event=>{if(busy||unconfirmed||user&&pendingPreferences()){event.preventDefault();event.returnValue='';}};
+ const online=()=>{if(user){renderStatus();automaticSync();}};
+ const offline=()=>{if(user){phase='offline';renderStatus();}};
+ const visible=()=>{if(document.visibilityState!=='hidden')automaticSync();};
+ $('#cloud-retry').addEventListener('click',()=>recoverPending());
+ window.addEventListener('beforeunload',beforeUnload);
+ window.addEventListener('online',online);
+ window.addEventListener('offline',offline);
+ document.addEventListener?.('visibilitychange',visible);
+ const automaticTimer=setInterval(automaticSync,60000);automaticTimer.unref?.();
  connect();
- return {mutate,noteDraftChange,saveAccountDrafts,refresh:renderStatus,isSignedIn:()=>!!user,destroy:()=>{clearTimeout(preferenceTimer);client?.destroy();}};
+ return {mutate,noteDraftChange,saveAccountDrafts,refresh:renderStatus,isSignedIn:()=>!!user,destroy:()=>{destroyed=true;bootGeneration++;connectionGeneration++;clearTimeout(preferenceTimer);clearInterval(automaticTimer);window.removeEventListener?.('beforeunload',beforeUnload);window.removeEventListener?.('online',online);window.removeEventListener?.('offline',offline);document.removeEventListener?.('visibilitychange',visible);client?.destroy();}};
 }

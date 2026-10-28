@@ -173,7 +173,7 @@ test('same-field remote preference changes during debounce retain the local draf
   const remote=shared();remote.preferences.avoidText+='、洋蔥';h.setRemote(remote);h.emitData(remote,{revision:2});
   t.mock.timers.tick(701);await tick();
   assert.equal(h.calls.submit.length,1);assert.match(h.draft.avoidText,/香菜/);
-  assert.match(h.e('#cloud-error').textContent,/相同內容/);assert.match(h.e('#save-state').innerHTML,/待同步/);
+  assert.match(h.e('#cloud-error').textContent,/相同內容/);assert.match(h.e('#save-state').innerHTML,/待確認/);assert.match(h.e('#cloud-status').textContent,/設定衝突/);
   t.mock.timers.tick(2000);await tick();assert.equal(h.calls.submit.length,1,'a conflicted draft does not overwrite remote settings on a retry loop');
   assert.deepEqual(h.state,remote.state);assert.equal(h.persistCount,0);
  }finally{h.cleanup();t.mock.timers.reset();}
@@ -224,7 +224,7 @@ test('a later synchronized metadata event does not dismiss an unresolved prefere
   const conflict=h.e('#cloud-error').textContent;assert.match(conflict,/相同內容/);assert.equal(h.e('#cloud-error').hidden,false);
   h.emitStatus('synced');h.emitData(remote,{revision:3});h.emitStatus('synced');
   assert.equal(h.e('#cloud-error').textContent,conflict);assert.equal(h.e('#cloud-error').hidden,false);
-  assert.match(h.draft.avoidText,/香菜/);assert.match(h.e('#save-state').innerHTML,/待同步/);
+  assert.match(h.draft.avoidText,/香菜/);assert.match(h.e('#save-state').innerHTML,/待確認/);
   t.mock.timers.tick(2000);await tick();assert.equal(h.calls.submit.length,1);
  }finally{h.cleanup();t.mock.timers.reset();}
 });
@@ -327,4 +327,103 @@ test('manual recovery preserves a differently edited pantry amount instead of cl
   assert.equal(h.state.inventory.find(row=>row.ingredientId==='egg').quantity,2,'the acknowledgment does not apply the new draft amount');
   assert.equal(JSON.parse(h.storage.get('weekly-table-cloud-drafts-v1:owner')).pantryDraft.quantity,'5');assert.equal(JSON.parse(h.storage.get(pendingKey)),null);
  }finally{h.cleanup();}
+});
+
+test('Firestore map key ordering never marks identical preferences as pending or submits empty writes',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=setup();try{
+  await tick();h.emitAuth(owner);h.emitHome(home);
+  const remote=shared();remote.preferences=Object.fromEntries(Object.entries(remote.preferences).reverse());h.setRemote(remote);h.emitData(remote);
+  assert.equal(h.e('#cloud-status').textContent,'已同步');assert.match(h.e('#save-state').innerHTML,/已同步/);
+  t.mock.timers.tick(180000);await tick();
+  assert.equal(h.calls.submit.length,0,'key-order differences must never create a retry loop');
+  assert.equal(h.e('#cloud-status').textContent,'已同步');
+ }finally{h.cleanup();t.mock.timers.reset();}
+});
+
+test('one-minute fallback sends valid unsent preferences while leaving menu settings unchanged',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=await connected();try{
+  const applied=clone(h.state.settings);h.draft.avoidText+='、香菜';h.controller.saveAccountDrafts();
+  t.mock.timers.tick(59999);await tick();assert.equal(h.calls.submit.length,0);
+  t.mock.timers.tick(1);await tick();
+  assert.equal(h.calls.submit.length,1);assert.deepEqual(h.calls.submit[0].preferences.map(operation=>operation.key),['avoidText']);
+  assert.deepEqual(h.state.settings,applied);assert.equal(h.e('#cloud-status').textContent,'已同步');
+  t.mock.timers.tick(120000);await tick();assert.equal(h.calls.submit.length,1,'already synchronized preferences do not write every minute');
+ }finally{h.cleanup();t.mock.timers.reset();}
+});
+
+test('restored valid preferences sync after loading without requiring another keystroke',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=setup();try{
+  await tick();const remote=shared(),draft=clone(remote.preferences);draft.avoidText+='、香菜';
+  h.storage.set('weekly-table-cloud-drafts-v1:owner',JSON.stringify({version:1,draft,basePreferences:remote.preferences,pantryDraft:{ingredientId:'egg',quantity:'2'}}));
+  h.emitAuth(owner);h.emitHome(home);h.emitData(remote);
+  assert.equal(h.e('#cloud-status').textContent,'設定待同步');
+  t.mock.timers.tick(701);await tick();
+  assert.equal(h.calls.submit.length,1);assert.match(h.draft.avoidText,/香菜/);assert.equal(h.e('#cloud-status').textContent,'已同步');
+ }finally{h.cleanup();t.mock.timers.reset();}
+});
+
+test('a restored draft keeps its original before-values across remote changes and reload',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=await connected();try{
+  h.draft.avoidText+='、香菜';h.controller.noteDraftChange();
+  const remote=shared();remote.preferences.avoidText+='、洋蔥';h.setRemote(remote);h.emitData(remote,{revision:2});
+  const saved=JSON.parse(h.storage.get('weekly-table-cloud-drafts-v1:owner'));
+  assert.doesNotMatch(saved.preferenceOrigin.preferences.avoidText,/洋蔥/,'the original before-value survives saving a newer server snapshot');
+  h.emitAuth(null);h.emitAuth(owner);h.emitHome(home);h.emitData(remote,{revision:2});
+  t.mock.timers.tick(701);await tick();
+  assert.equal(h.calls.submit.length,1);assert.match(h.e('#cloud-status').textContent,/設定衝突/);assert.match(h.e('#save-state').innerHTML,/待確認/);
+  assert.equal(h.e('#cloud-error').hidden,false);assert.match(h.draft.avoidText,/香菜/);assert.doesNotMatch(h.draft.avoidText,/洋蔥/);
+  t.mock.timers.tick(180000);await tick();assert.equal(h.calls.submit.length,1,'minute checks never silently override a same-field conflict');
+  h.emitAuth(null);h.emitAuth(owner);h.emitHome(home);h.emitData(remote,{revision:2});
+  t.mock.timers.tick(61000);await tick();assert.equal(h.calls.submit.length,1,'conflict acknowledgement is still required after reopening');
+  assert.match(h.e('#cloud-status').textContent,/設定衝突/);
+ }finally{h.cleanup();t.mock.timers.reset();}
+});
+
+test('minute checks retain invalid unfinished input locally without writing or reporting a false pending state',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=await connected();try{
+  h.draft.weekdayPeople='';h.draft.slots=[];h.controller.noteDraftChange();
+  t.mock.timers.tick(121000);await tick();
+  assert.equal(h.calls.submit.length,0);assert.equal(h.draft.weekdayPeople,'');assert.deepEqual(h.draft.slots,[]);
+  assert.equal(h.e('#cloud-status').textContent,'已同步');
+ }finally{h.cleanup();t.mock.timers.reset();}
+});
+
+test('minute checks recover an uncertain committed write with the same ID instead of duplicating stock',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=await connected();try{
+  let server=shared(),attempts=0,applications=0;const receipts=new Set();
+  h.setSubmit(async mutation=>{attempts++;if(!receipts.has(mutation.id)){server=applyMutation(server,mutation);receipts.add(mutation.id);applications++;}if(attempts===1)throw Object.assign(new Error('lost response'),{code:'unavailable'});return {snapshot:clone(server),revision:2};});
+  await assert.rejects(h.controller.mutate(()=>{h.state.inventory.push({ingredientId:'egg',quantity:3});}),{code:'unavailable'});
+  const pending=JSON.parse(h.storage.get(pendingKey));t.mock.timers.tick(60000);await tick();
+  assert.equal(h.calls.submit.length,2);assert.deepEqual(h.calls.submit[1],pending.mutation);assert.equal(applications,1);
+  assert.equal(h.state.inventory.find(item=>item.ingredientId==='egg').quantity,3);assert.equal(JSON.parse(h.storage.get(pendingKey)),null);assert.equal(h.e('#cloud-status').textContent,'已同步');
+ }finally{h.cleanup();t.mock.timers.reset();}
+});
+
+test('automatic checks never acknowledge an expired save on the user behalf',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=await connected();try{
+  h.setSubmit(async()=>{throw Object.assign(new Error('network'),{code:'unavailable'});});
+  await assert.rejects(h.controller.mutate(()=>{h.state.inventory.push({ingredientId:'egg',quantity:3});}),{code:'unavailable'});
+  const latest=shared();h.setSubmit(async()=>{throw Object.assign(new Error('expired'),{code:'sync/expired-mutation',latestSnapshot:latest,latestRevision:130});});
+  t.mock.timers.tick(60000);await tick();assert.equal(JSON.parse(h.storage.get(pendingKey)).reviewOnly,true);
+  t.mock.timers.tick(180000);await tick();assert.equal(h.calls.submit.length,2);assert.equal(JSON.parse(h.storage.get(pendingKey)).reviewOnly,true);
+  assert.equal(h.e('#cloud-status').textContent,'儲存待核對');assert.ok(h.controls.every(control=>control.disabled));
+ }finally{h.cleanup();t.mock.timers.reset();}
+});
+
+test('automatic checks skip signed-out accounts, offline sessions and destroyed controllers',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=await connected();try{
+  h.draft.avoidText+='、香菜';h.controller.saveAccountDrafts();h.navigator.onLine=false;h.emitWindow('offline');
+  t.mock.timers.tick(60000);await tick();assert.equal(h.calls.submit.length,0);
+  h.emitAuth(null);h.navigator.onLine=true;t.mock.timers.tick(60000);await tick();assert.equal(h.calls.submit.length,0);
+  h.emitAuth(owner);h.emitHome(home);h.emitData(shared());h.controller.destroy();
+  t.mock.timers.tick(180000);await tick();assert.equal(h.calls.submit.length,0);
+ }finally{h.cleanup();t.mock.timers.reset();}
 });

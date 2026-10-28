@@ -19,5 +19,40 @@
 .cuisine-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
 .kitchen-equipment{margin-top:17px;padding-top:14px;border-top:1px solid #e6ebde}.kitchen-equipment summary{font-size:11px;color:#6d805e;cursor:pointer}.kitchen-equipment summary span{font-size:10px;color:#8d9b7f;float:right}.kitchen-equipment ul{padding:0;margin:12px 0;list-style:none}.kitchen-equipment li{padding:8px 0;border-bottom:1px dashed #e2e8d9;font-size:10px;line-height:1.9;color:#7b8b6d}.kitchen-equipment li strong{display:block;font-size:10px;color:#587444;font-weight:500;letter-spacing:.5px}.kitchen-equipment>p{font-size:9px;line-height:1.9;color:#8a977c}.recipe-appliances{border:1px solid #e1e9d6;background:#f0f5e8;border-radius:9px;padding:11px 13px;margin-bottom:22px;display:flex;flex-wrap:wrap;gap:6px 10px}.recipe-appliances>strong{font-size:10px;color:#647e50;flex-basis:100%;font-weight:500}.recipe-appliances>span{font-size:10px;color:#7a8b68;line-height:1.9}.recipe-appliances b{font-weight:500;color:#5c7849}.recipe-appliances small{flex-basis:100%;font-size:9px;color:#8c977f}
 
-.cloud-panel{border:1px solid #dce6d3;background:#f0f5e9;border-radius:14px;padding:20px 23px;margin-bottom:29px}.cloud-heading{display:flex;align-items:center;justify-content:space-between;gap:20px}.cloud-heading h2{font-size:18px;font-weight:600;margin:5px 0}.cloud-heading p:last-child{font-size:12px;color:#738368}.cloud-actions{display:flex;gap:8px;flex-shrink:0}.cloud-actions .primary-button{white-space:nowrap}.cloud-status{font-size:11px;color:#617954;margin-top:13px}.cloud-status:before{content:'●';font-size:8px;margin-right:7px}.cloud-panel[data-phase=error] .cloud-status,.cloud-panel[data-phase=offline] .cloud-status{color:#9b6d37}.cloud-account{font-size:11px;color:#7c896f;margin-top:3px;overflow-wrap:anywhere}.cloud-setup{border-top:1px solid #dce6d3;margin-top:15px;padding-top:15px}.cloud-setup h3{font-size:13px;font-weight:500}.cloud-setup p{font-size:12px;line-height:1.8;color:#75836b;max-width:660px;margin:5px 0 12px}.cloud-setup small{display:block;margin-top:7px}.cloud-members{border-top:1px solid #dce6d3;margin-top:13px;padding-top:12px;font-size:12px}.cloud-members summary{cursor:pointer;color:#607650}.cloud-members p{font-size:11px;color:#77856d;margin-top:8px;overflow-wrap:anywhere}.cloud-members form{max-width:490px;margin-top:12px}.cloud-members label{font-size:11px}.cloud-members form>div{display:flex;gap:8px;margin:5px 0}.cloud-members input{font-size:12px}.cloud-members small{line-height:1.8}.cloud-error{font-size:12px;line-height:1.8;color:#946036;margin-top:12px}.cloud-panel .text-button{margin-top:8px;text-decoration:underline;text-underline-offset:3px}.save-state[data-phase=busy] i{background:#c49b5b}.save-state[data-phase=error] i,.save-state[data-phase=offline] i{background:#c17d54}.cloud-edit-locked{opacity:.65}.cloud-edit-locked button{cursor:wait}@media(max-width:760px){.cloud-panel{padding:17px;margin-bottom:24px}.cloud-heading{align-items:flex-start;flex-direction:column;gap:13px}.cloud-heading h2{font-size:17px}.cloud-heading .eyebrow{font-size:8px}.cloud-heading p:last-child{font-size:11px}.cloud-actions{width:100%}.cloud-actions .primary-button{padding:10px 14px}.cloud-status{line-height:1.8}.cloud-members form>div{flex-direction:column}.cloud-members form button{align-self:flex-start}.cloud-setup .secondary-button{white-space:normal;text-align:left}}@media print{.cloud-panel{display:none!important}}
-.cloud-panel[data-phase=unconfirmed] .cloud-status{color:#9b6d37}
+/* A single compact row; account controls open over the page when needed. */
+.cloud-panel{position:relative;border:1px solid #dce6d3;background:#f0f5e9;border-radius:8px;padding:3px 10px;margin-bottom:14px}
+.cloud-bar{display:flex;align-items:center;gap:10px;min-height:30px}
+.cloud-bar h2{font-size:12px;font-weight:600;white-space:nowrap}
+.cloud-status{flex:1;min-width:0;font-size:11px;line-height:1.5;color:#617954;overflow-wrap:anywhere}
+.cloud-status:before{content:'●';font-size:7px;margin-right:5px}
+.cloud-panel[data-phase=error] .cloud-status,.cloud-panel[data-phase=offline] .cloud-status,.cloud-panel[data-phase=unconfirmed] .cloud-status{color:#9b6d37}
+.cloud-panel #cloud-sign-in{font-size:11px;line-height:1.4;padding:5px 9px;white-space:nowrap}
+.cloud-details{flex-shrink:0}
+.cloud-details>summary{font-size:11px;line-height:28px;list-style:none;cursor:pointer;color:#607650;padding:0 3px;white-space:nowrap}
+.cloud-details>summary::-webkit-details-marker{display:none}
+.cloud-details>summary:after{content:'⌄';display:inline-block;margin-left:5px}
+.cloud-details[open]>summary:after{transform:rotate(180deg)}
+.cloud-panel:has(#cloud-account[hidden]) .cloud-details{display:none}
+.cloud-options{position:absolute;right:0;top:calc(100% + 5px);z-index:20;width:min(410px,100%);max-height:70vh;overflow:auto;padding:14px;background:#fff;border:1px solid #dce6d3;border-radius:10px;box-shadow:0 8px 26px #2c3c301a}
+.cloud-account-line{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cloud-account{font-size:11px;color:#6b7c5f;overflow-wrap:anywhere;min-width:0}
+.cloud-options .secondary-button{font-size:11px;padding:6px 9px;line-height:1.5}
+.cloud-members{border-top:1px solid #e4eadc;margin-top:10px;padding-top:10px;font-size:11px}
+.cloud-members h3{font-size:12px;font-weight:500}
+.cloud-members p{font-size:11px;color:#77856d;margin-top:5px;overflow-wrap:anywhere}
+.cloud-members form{margin-top:10px}
+.cloud-members label{font-size:11px}
+.cloud-members form>div{display:flex;gap:6px;margin:5px 0}
+.cloud-members input{font-size:12px;padding:7px 9px}
+.cloud-members small{font-size:10px;line-height:1.7}
+.cloud-setup{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;border-top:1px solid #dce6d3;margin-top:3px;padding:7px 0 5px}
+.cloud-setup p{font-size:11px;color:#75836b}
+.cloud-setup .secondary-button{font-size:11px;padding:5px 8px;white-space:normal}
+.cloud-setup small{font-size:10px;color:#75836b}
+.cloud-error{font-size:11px;line-height:1.7;color:#946036;margin:5px 0 3px;overflow-wrap:anywhere}
+.cloud-panel .text-button{font-size:11px;margin:3px 0;text-decoration:underline;text-underline-offset:3px}
+.save-state[data-phase=busy] i{background:#c49b5b}
+.save-state[data-phase=error] i,.save-state[data-phase=offline] i{background:#c17d54}
+.cloud-edit-locked{opacity:.65}.cloud-edit-locked button{cursor:wait}
+@media(max-width:760px){.cloud-panel{padding:3px 8px;margin-bottom:12px}.cloud-bar{gap:7px;min-height:32px}.cloud-bar h2{font-size:11px}.cloud-details>summary{line-height:30px}.cloud-options{padding:12px;max-height:65vh}.cloud-setup small{flex-basis:100%}}
+@media print{.cloud-panel{display:none!important}}

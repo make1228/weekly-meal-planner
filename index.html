@@ -13,10 +13,19 @@
   <main class="app-shell">
     <section class="intro"><div><p class="eyebrow">LESS PLANNING, MORE LIVING</p><h1>把一週的好好吃飯，<br class="mobile-br">先安排好。</h1><p class="intro-copy">從冰箱裡的食材開始，讓菜單和採買都簡單一點。</p><a href="#week-title" class="mobile-jump">查看本週菜單 ↓</a></div><div class="hero-art" aria-hidden="true"><svg viewBox="0 0 310 170"><ellipse cx="174" cy="132" rx="107" ry="14" fill="#e8e9de"/><ellipse cx="174" cy="89" rx="77" ry="63" fill="#fffdf6" stroke="#dfe3d5" stroke-width="3"/><ellipse cx="174" cy="89" rx="57" ry="45" fill="#f1f0e4"/><path d="M136 80q-20-24 2-30q4-22 23-9q20-11 26 11q18 3 8 24q-2 25-28 14q-17 15-31-10" fill="#668065"/><path d="M148 60l23 29m-10-39 9 38m13-28-12 27" stroke="#a6b390" stroke-width="3" stroke-linecap="round"/><path d="M160 104q0-22 30-21q32-4 33 16q-1 24-34 21q-23 3-29-16" fill="#d49162"/><path d="m176 93 9 18m6-21 10 19m2-19 9 14" stroke="#f5c392" stroke-width="5" stroke-linecap="round"/><circle cx="138" cy="104" r="12" fill="#d46e49"/><circle cx="151" cy="116" r="10" fill="#e5a746"/><path d="M64 44v66m-8-68v20q8 9 16 0V42m-8 68v30M268 43q-13 17 0 34v63m0-97v35" fill="none" stroke="#aab29d" stroke-width="5" stroke-linecap="round"/><path d="M230 17q15-13 27-4q-7 19-25 14m-6 7 16-15M96 31q-11-15-27-8q5 20 24 18m8 5L82 31" fill="#8d9d74" stroke="#8d9d74" stroke-width="2"/><circle cx="96" cy="118" r="4" fill="#d8b56a"/><circle cx="245" cy="113" r="3" fill="#d8b56a"/></svg></div></section>
     <section class="cloud-panel" aria-labelledby="cloud-title">
-      <div class="cloud-heading"><div><p class="eyebrow">OUR TABLE, TOGETHER</p><h2 id="cloud-title">一起安排，同一份餐桌。</h2><p id="cloud-description">登入後，和家人共用菜單、偏好與冰箱庫存。</p></div><div class="cloud-actions"><button type="button" id="cloud-sign-in" class="primary-button" disabled>使用 Google 登入</button><button type="button" id="cloud-sign-out" class="secondary-button" hidden>登出</button></div></div>
-      <p id="cloud-status" class="cloud-status" role="status" aria-live="polite">正在確認雲端連線…</p><p id="cloud-account" class="cloud-account" hidden></p>
-      <div id="cloud-setup" class="cloud-setup" hidden><h3>建立你們的共用餐桌</h3><p>目前雲端還沒有菜單。選擇此裝置的資料作為第一份共用菜單，之後另一台裝置登入就會讀取這一份。</p><button type="button" class="secondary-button" id="cloud-initialize">使用此裝置的菜單與庫存</button><small>此裝置原有資料會保留，可隨時匯出備份。</small></div>
-      <details id="cloud-members" class="cloud-members" hidden><summary>家庭成員</summary><p id="cloud-member-description"></p><form id="cloud-member-form"><label for="cloud-partner-email">另一位家人的 Google 帳號</label><div><input type="email" id="cloud-partner-email" maxlength="254" autocomplete="email" placeholder="name@gmail.com" required><button type="submit" class="secondary-button">儲存成員</button></div><small>僅這兩個帳號能讀寫共用餐桌。儲存後，請家人開啟同一網址登入。</small></form></details>
+      <div class="cloud-bar">
+        <h2 id="cloud-title">共用餐桌</h2>
+        <p id="cloud-status" class="cloud-status" role="status" aria-live="polite">連線中…</p>
+        <button type="button" id="cloud-sign-in" class="primary-button" disabled>Google 登入</button>
+        <details class="cloud-details"><summary>帳號與成員</summary>
+          <div class="cloud-options">
+            <p id="cloud-description" class="sr-only">登入後，和家人共用菜單、偏好與冰箱庫存。</p>
+            <div class="cloud-account-line"><p id="cloud-account" class="cloud-account" hidden></p><button type="button" id="cloud-sign-out" class="secondary-button" hidden>登出</button></div>
+            <section id="cloud-members" class="cloud-members" hidden><h3>家庭成員</h3><p id="cloud-member-description"></p><form id="cloud-member-form"><label for="cloud-partner-email">家人的 Google 帳號</label><div><input type="email" id="cloud-partner-email" maxlength="254" autocomplete="email" placeholder="name@gmail.com" required><button type="submit" class="secondary-button">儲存</button></div><small>家人使用此帳號登入同一網址，即可共用。</small></form></section>
+          </div>
+        </details>
+      </div>
+      <div id="cloud-setup" class="cloud-setup" hidden><h3 class="sr-only">建立共用餐桌</h3><p>選擇此裝置的資料作為第一份共用菜單。</p><button type="button" class="secondary-button" id="cloud-initialize">使用此裝置的菜單與庫存</button><small>原有資料會保留，可隨時匯出備份。</small></div>
       <p id="cloud-error" class="cloud-error" role="alert" hidden></p><button type="button" id="cloud-retry" class="text-button" hidden>重新連線</button>
     </section>
     <div class="workspace">
