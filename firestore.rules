@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function googleUser() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function ownerAccount() {
+      return googleUser() && request.auth.token.email.lower() == 'make1228@gmail.com';
+    }
+    function home() {
+      return get(/databases/$(database)/documents/mealHomes/weekly-table).data;
+    }
+    function homeOwner() {
+      return ownerAccount() && home().ownerUid == request.auth.uid;
+    }
+    function homeMember() {
+      return googleUser() && (homeOwner()
+        || (home().partnerEmail != '' && home().partnerEmail == request.auth.token.email.lower()));
+    }
+    function validHome(data) {
+      return data.keys().hasAll(['schemaVersion','ownerUid','ownerEmail','partnerEmail','createdAt','updatedAt'])
+        && data.keys().hasOnly(['schemaVersion','ownerUid','ownerEmail','partnerEmail','createdAt','updatedAt'])
+        && data.schemaVersion == 1
+        && data.ownerUid is string
+        && data.ownerEmail == 'make1228@gmail.com'
+        && data.partnerEmail is string && data.partnerEmail.size() <= 320
+        && (data.partnerEmail == '' || (data.partnerEmail == data.partnerEmail.lower()
+          && data.partnerEmail.matches('^[^@\\s,;<>]+@[^@\\s,;<>]+\\.[^@\\s,;<>]+$')
+          && data.partnerEmail != data.ownerEmail))
+        && data.createdAt is timestamp && data.updatedAt == request.time;
+    }
+    function validData(data) {
+      return data.keys().hasAll(['schemaVersion','snapshot','revision','updatedAt','updatedBy','recentMutationIds'])
+        && data.keys().hasOnly(['schemaVersion','snapshot','revision','updatedAt','updatedBy','recentMutationIds'])
+        && data.recentMutationIds is list && data.recentMutationIds.size() <= 128
+        && data.schemaVersion == 1 && data.revision is int
+        && data.updatedAt == request.time && data.updatedBy == request.auth.uid
+        && data.snapshot is map
+        && data.snapshot.keys().hasAll(['version','state','preferences'])
+        && data.snapshot.keys().hasOnly(['version','state','preferences'])
+        && data.snapshot.version == 1
+        && data.snapshot.preferences is map && data.snapshot.preferences.size() <= 12
+        && data.snapshot.state is map
+        && data.snapshot.state.keys().hasAll(['version','settings','inventory','plan','checked'])
+        && data.snapshot.state.keys().hasOnly(['version','settings','inventory','plan','checked'])
+        && data.snapshot.state.version == 1
+        && data.snapshot.state.settings is map
+        && data.snapshot.state.inventory is list && data.snapshot.state.inventory.size() <= 200
+        && data.snapshot.state.plan is map
+        && data.snapshot.state.checked is map && data.snapshot.state.checked.size() <= 200;
+    }
+    match /mealHomes/weekly-table {
+      allow get: if ownerAccount() || homeMember();
+      allow list, delete: if false;
+      allow create: if ownerAccount() && validHome(request.resource.data)
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.partnerEmail == ''
+        && request.resource.data.createdAt == request.time;
+      allow update: if homeOwner() && validHome(request.resource.data)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.ownerEmail == resource.data.ownerEmail
+        && request.resource.data.createdAt == resource.data.createdAt;
+      match /data/current {
+        allow get: if homeMember();
+        allow list, delete: if false;
+        allow create: if homeOwner() && validData(request.resource.data) && request.resource.data.revision == 1;
+        allow update: if homeMember() && validData(request.resource.data)
+          && request.resource.data.revision == resource.data.revision + 1;
+      }
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
