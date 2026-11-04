@@ -9,7 +9,7 @@ const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof v
 const equal=(a,b)=>JSON.stringify(canonical(a))===JSON.stringify(canonical(b));
 const DRAFT_PREFIX='weekly-table-cloud-drafts-v1:';
 const PENDING_PREFIX='weekly-table-cloud-pending-v1:';
-const EDIT_CONTROLS='#settings-form [type=submit],[name=appetite],.family-settings input,#pantry-form [type=submit],[data-remove],[data-swap],[data-cooked],[data-buy],#clear-checked,[data-feedback],[data-portion],#import-button,#prev-week,#next-week,#start-date,#replacement-random,[data-select-recipe]';
+const EDIT_CONTROLS='#settings-form [type=submit],[form=settings-form][type=submit],[name=appetite],.family-settings input,#pantry-form [type=submit],[data-remove],[data-swap],[data-cooked],[data-buy],#clear-checked,[data-feedback],[data-portion],#import-button,#replacement-random,[data-select-recipe]';
 
 /** Keeps personal browser data separate from the signed-in household. */
 export function installCloudSync(adapter,{config=firebaseConfig,transport=createFirebaseSync}={}){
@@ -109,7 +109,8 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
   if(!pendingPreferences()){draftOrigin=null;draftBlocked=false;}
   if(first&&draftBlocked)error('先前的設定有衝突，已保留你的輸入。請確認最新共用內容後，再修改或產生菜單。');
   closeStaleDialogs();adapter.refresh();saveAccountDrafts();renderStatus();
-  if(first&&pendingPreferences()&&!draftBlocked){clearTimeout(preferenceTimer);preferenceTimer=setTimeout(syncDraft,700);}
+  if(first&&adapter.retentionNeeded?.(base.state)){clearTimeout(preferenceTimer);preferenceTimer=setTimeout(automaticSync,0);}
+  else if(first&&pendingPreferences()&&!draftBlocked){clearTimeout(preferenceTimer);preferenceTimer=setTimeout(syncDraft,700);}
  }
  function accept(snapshot,metadata={}){
   if(!user||!home)return;
@@ -232,14 +233,26 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
   finally{if(token===connectionGeneration){busy=false;if(base)hydrate();renderStatus();}}
  }
  async function automaticSync(){
-  if(destroyed||!user||!home||!base||busy||authBusy||navigator.onLine===false)return;
+  if(destroyed)return;
+  if(!user){
+   if(adapter.retentionNeeded?.(adapter.getState())){adapter.retainWeekWindow?.();adapter.persist();adapter.refresh();}
+   return;
+  }
+  if(!home||!base||busy||authBusy||navigator.onLine===false)return;
   if(unconfirmed){if(!unconfirmed.reviewOnly)await recoverPending({automatic:true});return;}
+  // Pruning expired weeks is independent of preference drafts and never creates
+  // a menu. Ordinary navigation has no write path through this controller.
+  if(phase==='synced'&&adapter.retentionNeeded?.(base.state)){
+   try{await mutate(()=>adapter.retainWeekWindow?.(),{replacePlan:true});}
+   catch{/* The normal sync error and conflict controls retain the latest data. */}
+   return;
+  }
   if(draftBlocked)return;
   if(phase==='error'){await connect();return;}
   await syncDraft();
  }
  const beforeUnload=event=>{if(busy||unconfirmed||user&&pendingPreferences()){event.preventDefault();event.returnValue='';}};
- const online=()=>{if(user){renderStatus();automaticSync();}};
+ const online=()=>{if(user)renderStatus();automaticSync();};
  const offline=()=>{if(user){phase='offline';renderStatus();}};
  const visible=()=>{if(document.visibilityState!=='hidden')automaticSync();};
  $('#cloud-retry').addEventListener('click',()=>recoverPending());

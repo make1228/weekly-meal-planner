@@ -1,4 +1,4 @@
-import {INGREDIENTS,aggregateShopping,equivalentServings} from './engine.js';
+import {INGREDIENTS,aggregateShopping,equivalentServings,addDays} from './engine.js';
 
 // Shared data deliberately excludes unfinished form input and all device identity.
 const ingredientIds=new Set(INGREDIENTS.map(item=>item.id));
@@ -75,6 +75,13 @@ function normalizeState(raw){
  if(meals.some(meal=>!object(meal)||typeof meal.key!=='string'||isUnsafeKey(meal.key))||new Set(meals.map(meal=>meal.key)).size!==meals.length)throw new TypeError('共用餐點格式不正確。');
  // Reuse recipe/quantity validation and prevent malformed documents reaching merge.
  aggregateShopping(state.plan,state.inventory);
+ if(own(state.plan,'nextWeek')){
+  const entry=state.plan.nextWeek;
+  if(!object(entry)||Object.keys(entry).some(key=>!['settings','plan','checked'].includes(key))||!object(entry.plan)||own(entry.plan,'nextWeek')||entry.plan.startDate!==addDays(state.plan.startDate,7)||entry.settings?.startDate!==entry.plan.startDate)throw new TypeError('下一週共用菜單格式不正確。');
+  const following=normalizeState({version:1,settings:entry.settings,inventory:state.inventory,plan:entry.plan,checked:entry.checked});
+  following.settings.feedback=clone(state.settings.feedback);
+  state.plan.nextWeek={settings:following.settings,plan:following.plan,checked:following.checked};
+ }
  return state;
 }
 export function createSharedSnapshot(state,preferences){
@@ -91,27 +98,60 @@ function quantities(state){return new Map(aggregateShopping(state.plan,state.inv
 function mutationId(){return globalThis.crypto?.randomUUID?.()||`meal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;}
 export const newGenerationId=()=>mutationId();
 
+// The following week is metadata inside plan for the existing Firestore schema,
+// but it has an independent menu identity and compare-and-swap operations.
+function weekOnly(state){
+ const {nextWeek,...plan}=state.plan;
+ return {settings:clone(state.settings),plan:clone(plan),checked:clone(state.checked)};
+}
+function nextWeekOnly(state){
+ const entry=state.plan.nextWeek;if(!entry)return null;
+ const result=clone(entry);result.settings.feedback={};return result;
+}
+function weekQuantities(week,inventory){return quantities({...week,inventory});}
+function createWeekMutation(before,after,beforeInventory,afterInventory,{replacePlan=false}={}){
+ const oldMeals=mealMap(before.plan),newMeals=mealMap(after.plan);
+ const changedMeals=[...newMeals].filter(([key,value])=>!equal(value,oldMeals.get(key)));
+ const wholePlan=replacePlan||!equal(planIdentity(before.plan),planIdentity(after.plan))||changedMeals.length>1||!equal(appliedSettings(before.settings),appliedSettings(after.settings));
+ const nextQuantities=weekQuantities(after,afterInventory);
+ return {
+  plan:wholePlan?{before:before.plan,after:after.plan,settings:appliedSettings(before.settings)}:null,
+  context:planIdentity(before.plan),
+  meals:wholePlan?[]:changedMeals.map(([key,value])=>({key,before:oldMeals.get(key),after:value})),
+  settings:entryChanges(appliedSettings(before.settings),appliedSettings(after.settings)),
+  checked:entryChanges(before.checked,after.checked).map(operation=>({...operation,week:after.plan.startDate,quantity:nextQuantities.get(operation.key)||0})),
+  planTimestamp:after.plan.generatedAt||null,
+  seedDelta:Number(after.settings.seed||0)-Number(before.settings.seed||0)
+ };
+}
+function hasWeekMutation(mutation){return !!(mutation.plan&&!equal(mutation.plan.before,mutation.plan.after)||['meals','settings','checked'].some(key=>mutation[key]?.length)||mutation.seedDelta);}
 export function createMutation(baseInput,nextInput,{replacePlan=false,replaceInventory=false}={}){
  const base=normalizeSnapshot(baseInput),next=normalizeSnapshot(nextInput);
  // Fields absent from a partial/older client draft are unchanged, never an
  // implicit request to reset another household member's newer preferences.
  for(const key of ['appetite','weekdayChildren','weekendChildren'])if(!own(nextInput.preferences,key))delete next.preferences[key];
  next.preferences=validSharedPreferences(next.preferences,base.preferences);
- const oldMeals=mealMap(base.state.plan),newMeals=mealMap(next.state.plan);
- const changedMeals=[...newMeals].filter(([key,value])=>!equal(value,oldMeals.get(key)));
- const wholePlan=replacePlan||!equal(planIdentity(base.state.plan),planIdentity(next.state.plan))||changedMeals.length>1||!equal(appliedSettings(base.state.settings),appliedSettings(next.state.settings));
- const settings=entryChanges(appliedSettings(base.state.settings),appliedSettings(next.state.settings));
+ const beforeCurrent=weekOnly(base.state),afterCurrent=weekOnly(next.state);
+ const forceCurrent=replacePlan&&(!equal(beforeCurrent.plan,afterCurrent.plan)||!equal(appliedSettings(beforeCurrent.settings),appliedSettings(afterCurrent.settings)));
+ const current=createWeekMutation(beforeCurrent,afterCurrent,base.state.inventory,next.state.inventory,{replacePlan:forceCurrent});
  const feedback=[];
  const oldFeedback=base.state.settings.feedback,newFeedback=next.state.settings.feedback;
  for(const recipeId of sortedUnique([...Object.keys(oldFeedback),...Object.keys(newFeedback)]))for(const operation of entryChanges(oldFeedback[recipeId]||{},newFeedback[recipeId]||{}))feedback.push({recipeId,...operation});
  const oldInventory=Object.fromEntries(base.state.inventory.map(row=>[row.ingredientId,row.quantity])),newInventory=Object.fromEntries(next.state.inventory.map(row=>[row.ingredientId,row.quantity]));
  const inventory=entryChanges(oldInventory,newInventory).map(operation=>({...operation,delta:!replaceInventory&&operation.after.present&&operation.after.value>(operation.before.present?operation.before.value:0)?round(operation.after.value-(operation.before.present?operation.before.value:0)):null}));
- const nextQuantities=quantities(next.state);
- const checked=entryChanges(base.state.checked,next.state.checked).map(operation=>({...operation,week:next.state.plan.startDate,quantity:nextQuantities.get(operation.key)||0}));
- const mutation={version:1,id:mutationId(),plan:wholePlan?{before:base.state.plan,after:next.state.plan,settings:appliedSettings(base.state.settings)}:null,context:planIdentity(base.state.plan),meals:wholePlan?[]:changedMeals.map(([key,value])=>({key,before:oldMeals.get(key),after:value})),settings,feedback,inventory,preferences:entryChanges(base.preferences,next.preferences),checked,planTimestamp:next.state.plan.generatedAt||null,seedDelta:Number(next.state.settings.seed||0)-Number(base.state.settings.seed||0)};
+ const mutation={version:1,id:mutationId(),...current,feedback,inventory,preferences:entryChanges(base.preferences,next.preferences)};
+ const beforeNext=nextWeekOnly(base.state),afterNext=nextWeekOnly(next.state);
+ // An omitted nextWeek from an older/partial client is unchanged. Retention
+ // shifts the current anchor and supplies a new entry instead of deleting it.
+ if(beforeNext&&afterNext){
+  const following=createWeekMutation(beforeNext,afterNext,base.state.inventory,next.state.inventory,{replacePlan:false});
+  if(hasWeekMutation(following))mutation.nextWeek={kind:'update',mutation:following};
+ }else if(afterNext){
+  mutation.nextWeek={kind:'replace',before:{present:false},after:{present:true,value:afterNext}};
+ }
  return mutation;
 }
-export function hasMutation(mutation){return !!(mutation.plan&&!equal(mutation.plan.before,mutation.plan.after)||['meals','settings','feedback','inventory','preferences','checked'].some(key=>mutation[key]?.length)||mutation.seedDelta);}
+export function hasMutation(mutation){return !!(hasWeekMutation(mutation)||['feedback','inventory','preferences'].some(key=>mutation[key]?.length)||mutation.nextWeek);}
 function mergeEntries(target,operations,prefix,conflicts){
  for(const operation of operations){
   if(isUnsafeKey(operation.key)){conflicts.push(`${prefix}.${operation.key}`);continue;}
@@ -121,26 +161,53 @@ function mergeEntries(target,operations,prefix,conflicts){
  }
 }
 
-export function applyMutation(latestInput,mutation){
- if(!object(mutation)||mutation.version!==1||!['meals','settings','feedback','inventory','preferences','checked'].every(key=>Array.isArray(mutation[key])))throw new TypeError('同步操作格式不正確。');
- const latest=normalizeSnapshot(latestInput),result=clone(latest),conflicts=[];
- const beforeQuantities=quantities(latest.state),beforeWeek=latest.state.plan.startDate;
+function applyWeekMutation(week,mutation,conflicts,prefix=''){
+ if(!object(mutation)||!['meals','settings','checked'].every(key=>Array.isArray(mutation[key]))||!Number.isFinite(mutation.seedDelta))throw new TypeError('同步餐週操作格式不正確。');
  if(mutation.plan){
-  if(!equal(latest.state.plan,mutation.plan.before)||!equal(appliedSettings(latest.state.settings),mutation.plan.settings))conflicts.push('plan');
-  else result.state.plan=clone(mutation.plan.after);
+  if(!equal(week.plan,mutation.plan.before)||!equal(appliedSettings(week.settings),mutation.plan.settings))conflicts.push(`${prefix}plan`);
+  else week.plan=clone(mutation.plan.after);
  }else if(mutation.meals.length){
-  if(!equal(planIdentity(latest.state.plan),mutation.context))conflicts.push('plan');
+  if(!equal(planIdentity(week.plan),mutation.context))conflicts.push(`${prefix}plan`);
   else{
-   const currentMeals=mealMap(result.state.plan);
+   const currentMeals=mealMap(week.plan);
    for(const operation of mutation.meals){
     const current=currentMeals.get(operation.key);
-    if(!current||(!equal(current,operation.before)&&!equal(current,operation.after))){conflicts.push(`meal.${operation.key}`);continue;}
-    for(const day of result.state.plan.days){const index=day.meals.findIndex(meal=>meal.key===operation.key);if(index>=0)day.meals[index]=clone(operation.after);}
+    if(!current||(!equal(current,operation.before)&&!equal(current,operation.after))){conflicts.push(`${prefix}meal.${operation.key}`);continue;}
+    for(const day of week.plan.days){const index=day.meals.findIndex(meal=>meal.key===operation.key);if(index>=0)day.meals[index]=clone(operation.after);}
    }
   }
  }
- if(!mutation.plan&&mutation.meals.length&&typeof mutation.planTimestamp==='string'&&mutation.planTimestamp>String(result.state.plan.generatedAt||''))result.state.plan.generatedAt=mutation.planTimestamp;
- mergeEntries(result.state.settings,mutation.settings,'settings',conflicts);
+ if(!mutation.plan&&mutation.meals.length&&typeof mutation.planTimestamp==='string'&&mutation.planTimestamp>String(week.plan.generatedAt||''))week.plan.generatedAt=mutation.planTimestamp;
+ mergeEntries(week.settings,mutation.settings,`${prefix}settings`,conflicts);
+ week.settings.seed=Number(week.settings.seed||0)+mutation.seedDelta;
+}
+function reconcileWeekChecks(before,after,beforeInventory,afterInventory,operations=[]){
+ const oldQuantities=weekQuantities(before,beforeInventory),newQuantities=weekQuantities(after,afterInventory),sameWeek=before.plan.startDate===after.plan.startDate;
+ after.checked=Object.fromEntries(Object.entries(before.checked).filter(([key,value])=>value===true&&sameWeek&&(newQuantities.get(key)||0)>0&&oldQuantities.get(key)===newQuantities.get(key)));
+ for(const operation of operations){
+  if(!ingredientIds.has(operation.key)||operation.week!==after.plan.startDate||(newQuantities.get(operation.key)||0)!==operation.quantity)continue;
+  if(!operation.after.present||operation.after.value!==true)delete after.checked[operation.key];
+  else if(operation.quantity>0)after.checked[operation.key]=true;
+ }
+}
+export function applyMutation(latestInput,mutation){
+ if(!object(mutation)||mutation.version!==1||!['meals','settings','feedback','inventory','preferences','checked'].every(key=>Array.isArray(mutation[key])))throw new TypeError('同步操作格式不正確。');
+ const latest=normalizeSnapshot(latestInput),result=clone(latest),conflicts=[];
+ const currentBefore=weekOnly(latest.state),current=clone(currentBefore),followingBefore=nextWeekOnly(latest.state);
+ let following=clone(followingBefore),followingChecks=[];
+ applyWeekMutation(current,mutation,conflicts);
+ const nextOperation=mutation.nextWeek;
+ if(nextOperation){
+  if(nextOperation.kind==='update'){
+   if(!following)conflicts.push('nextWeek.plan');
+   else{applyWeekMutation(following,nextOperation.mutation,conflicts,'nextWeek.');followingChecks=nextOperation.mutation.checked;}
+  }else if(nextOperation.kind==='replace'){
+   const currentEntry=following?{present:true,value:following}:{present:false};
+   if(!equalEntry(currentEntry,nextOperation.before)&&!equalEntry(currentEntry,nextOperation.after))conflicts.push('nextWeek.plan');
+   else following=nextOperation.after.present?clone(nextOperation.after.value):null;
+  }else throw new TypeError('下一週同步操作格式不正確。');
+ }
+ result.state.settings=current.settings;result.state.plan=current.plan;result.state.checked=current.checked;
  for(const operation of mutation.feedback){
   if(isUnsafeKey(operation.recipeId)){conflicts.push('feedback');continue;}
   result.state.settings.feedback[operation.recipeId]??={};
@@ -159,23 +226,27 @@ export function applyMutation(latestInput,mutation){
  }
  result.state.inventory=Object.entries(inventory).map(([ingredientId,quantity])=>({ingredientId,quantity}));
  mergeEntries(result.preferences,mutation.preferences,'preferences',conflicts);
- // Individually valid edits can target different headcounts yet combine into
- // an empty household. Reject that whole merge instead of silently dropping
- // its preference fields during canonicalization.
+ // Two individually valid edits cannot combine into an empty household.
  for(const prefix of ['weekday','weekend']){
   const adults=`${prefix}People`,children=`${prefix}Children`;
   if(own(result.preferences,adults)&&own(result.preferences,children)&&Number(result.preferences[adults])+Number(result.preferences[children])===0)conflicts.push(`preferences.${adults}`,`preferences.${children}`);
  }
  if(conflicts.length)throw new SyncConflictError(conflicts);
- if(!Number.isFinite(mutation.seedDelta))throw new TypeError('同步隨機種子格式不正確。');
- result.state.settings.seed=Number(result.state.settings.seed||0)+mutation.seedDelta;
- const afterQuantities=quantities(result.state),afterWeek=result.state.plan.startDate;
- result.state.checked=Object.fromEntries(Object.entries(latest.state.checked).filter(([key,value])=>value===true&&beforeWeek===afterWeek&&(afterQuantities.get(key)||0)>0&&beforeQuantities.get(key)===afterQuantities.get(key)));
- for(const operation of mutation.checked){
-  if(!ingredientIds.has(operation.key))continue;
-  if(operation.week!==afterWeek||(afterQuantities.get(operation.key)||0)!==operation.quantity)continue;
-  if(!operation.after.present||operation.after.value!==true)delete result.state.checked[operation.key];
-  else if(operation.quantity>0)result.state.checked[operation.key]=true;
+ // Retention can promote the saved following week into the current slot.
+ // Reconcile by the calendar date, not by the previous slot's position.
+ const previousWeeks=[currentBefore,followingBefore].filter(Boolean);
+ const previousCurrent=previousWeeks.find(week=>week.plan.startDate===current.plan.startDate)||currentBefore;
+ reconcileWeekChecks(previousCurrent,current,latest.state.inventory,result.state.inventory,mutation.checked);
+ result.state.checked=current.checked;
+ if(following){
+  const previousFollowing=previousWeeks.find(week=>week.plan.startDate===following.plan.startDate)||followingBefore;
+  if(previousFollowing)reconcileWeekChecks(previousFollowing,following,latest.state.inventory,result.state.inventory,followingChecks);
+  else{
+   const needed=weekQuantities(following,result.state.inventory);
+   following.checked=Object.fromEntries(Object.entries(following.checked).filter(([key,value])=>value===true&&(needed.get(key)||0)>0));
+  }
+  following.settings.feedback=clone(result.state.settings.feedback);
+  result.state.plan.nextWeek=following;
  }
  return normalizeSnapshot(result);
 }

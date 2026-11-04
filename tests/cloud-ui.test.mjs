@@ -4,6 +4,7 @@ import {installCloudSync} from '../cloud-ui.js';
 import {DEFAULT_SETTINGS,generatePlan,aggregateShopping,setPlanDiners} from '../engine.js';
 import {settingsToDraft} from '../preferences.js';
 import {createSharedSnapshot,applyMutation} from '../sync-model.js';
+import {retainWeeks} from '../weeks.js';
 
 const clone=value=>structuredClone(value);
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
@@ -54,6 +55,46 @@ function setup(){
  };
 }
 async function connected(){const h=setup();await tick();h.emitAuth(owner);h.emitHome(home);h.emitData(shared());return h;}
+
+test('first cloud load prunes expired weeks without generating recipes or changing pantry and preferences',async()=>{
+ const h=setup();try{
+  await tick();
+  const expired=shared();expired.state.inventory=[{ingredientId:'egg',quantity:7}];expired.preferences.avoidText+='、香菜';
+  h.setRemote(expired);
+  h.adapter.retentionNeeded=value=>!['2026-11-02','2026-11-09'].includes(value.plan.startDate);
+  h.adapter.retainWeekWindow=()=>h.adapter.setState(retainWeeks(h.state,'2026-11-04',DEFAULT_SETTINGS));
+  h.emitAuth(owner);h.emitHome(home);h.emitData(expired);
+  await new Promise(resolve=>setTimeout(resolve,20));
+  assert.equal(h.calls.submit.length,1);
+  assert.equal(h.state.plan.startDate,'2026-11-02');
+  assert.equal(h.state.plan.nextWeek.plan.startDate,'2026-11-09');
+  assert.ok(h.state.plan.unplanned&&h.state.plan.days.every(day=>day.meals.length===0));
+  assert.ok(h.state.plan.nextWeek.plan.unplanned&&h.state.plan.nextWeek.plan.days.every(day=>day.meals.length===0));
+  assert.deepEqual(h.state.inventory,expired.state.inventory);
+  assert.equal(h.draft.avoidText,expired.preferences.avoidText);
+  assert.deepEqual(h.calls.submit[0].inventory,[]);
+  assert.deepEqual(h.calls.submit[0].preferences,[]);
+  h.emitWindow('online');await tick();
+  assert.equal(h.calls.submit.length,1,'unchanged retained weeks never resubmit');
+ }finally{h.cleanup();}
+});
+
+test('personal week retention runs without signing in and saves empty weeks without filling recipes',async()=>{
+ const h=setup();try{
+  await tick();
+  h.state.inventory=[{ingredientId:'milk',quantity:125}];
+  h.adapter.retentionNeeded=value=>value.plan.startDate==='2026-10-26';
+  h.adapter.retainWeekWindow=()=>h.adapter.setState(retainWeeks(h.state,'2026-11-04',DEFAULT_SETTINGS));
+  h.emitWindow('online');await tick();
+  assert.equal(h.persistCount,1);
+  assert.equal(h.persisted.state.plan.startDate,'2026-11-02');
+  assert.equal(h.persisted.state.plan.nextWeek.plan.startDate,'2026-11-09');
+  assert.ok(h.persisted.state.plan.unplanned);
+  assert.deepEqual(h.persisted.state.inventory,[{ingredientId:'milk',quantity:125}]);
+  assert.equal(h.calls.submit.length,0);
+  h.emitWindow('online');await tick();assert.equal(h.persistCount,1);
+ }finally{h.cleanup();}
+});
 
 test('personal edits stay independent when signing in, changing shared data and signing out',async()=>{
  const h=setup();try{
