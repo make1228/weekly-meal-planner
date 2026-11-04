@@ -9,7 +9,7 @@ const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof v
 const equal=(a,b)=>JSON.stringify(canonical(a))===JSON.stringify(canonical(b));
 const DRAFT_PREFIX='weekly-table-cloud-drafts-v1:';
 const PENDING_PREFIX='weekly-table-cloud-pending-v1:';
-const EDIT_CONTROLS='#settings-form [type=submit],#pantry-form [type=submit],[data-remove],[data-swap],[data-cooked],[data-buy],#clear-checked,[data-feedback],[data-portion],#import-button,#prev-week,#next-week,#start-date,#replacement-random,[data-select-recipe]';
+const EDIT_CONTROLS='#settings-form [type=submit],[name=appetite],#pantry-form [type=submit],[data-remove],[data-swap],[data-cooked],[data-buy],#clear-checked,[data-feedback],[data-portion],#import-button,#prev-week,#next-week,#start-date,#replacement-random,[data-select-recipe]';
 
 /** Keeps personal browser data separate from the signed-in household. */
 export function installCloudSync(adapter,{config=firebaseConfig,transport=createFirebaseSync}={}){
@@ -98,7 +98,7 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
    draftOrigin={snapshot:{...clone(base),preferences:validSharedPreferences(origin,base.preferences)},revision};
    draftBlocked=accountDraft?.draftBlocked===true;
   }
-  for(const [key,value] of Object.entries(base.preferences))if(!previous||equal(draft[key],previous[key])||equal(draft[key],value)){
+  for(const [key,value] of Object.entries(base.preferences))if(!Object.prototype.hasOwnProperty.call(draft,key)||!previous||equal(draft[key],previous[key])||equal(draft[key],value)){
    draft[key]=clone(value);
    if(draftOrigin)draftOrigin.snapshot.preferences[key]=clone(value);
   }
@@ -120,7 +120,7 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
   confirmedReceipts=new Set(metadata.recentMutationIds||[]);
   if(unconfirmed&&confirmedReceipts.has(unconfirmed.mutation?.id)){clearRecoveredPantry(unconfirmed.mutation);setUnconfirmed(null);error('');}
   const first=!everHadData;
-  base=clone(snapshot);revision=nextRevision;everHadData=true;
+  base=createSharedSnapshot(snapshot.state,snapshot.preferences);revision=nextRevision;everHadData=true;
   if(!busy){phase='synced';hydrate({first});}
  }
  async function mutate(action,{replacePlan=false,replaceInventory=false,sharePreferences=false,preferenceOrigin=null}={}){

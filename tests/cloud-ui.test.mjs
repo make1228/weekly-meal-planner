@@ -427,3 +427,28 @@ test('automatic checks skip signed-out accounts, offline sessions and destroyed 
   t.mock.timers.tick(180000);await tick();assert.equal(h.calls.submit.length,0);
  }finally{h.cleanup();t.mock.timers.reset();}
 });
+
+test('a legacy cloud record receives normal appetite without pending status or automatic empty writes',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=setup();try{
+  await tick();h.emitAuth(owner);h.emitHome(home);
+  const legacy=shared();delete legacy.state.settings.appetite;delete legacy.preferences.appetite;
+  h.setRemote(legacy);h.emitData(legacy);
+  assert.equal(h.state.settings.appetite,'normal');assert.equal(h.draft.appetite,'normal');
+  assert.equal(h.e('#cloud-status').textContent,'已同步');
+  t.mock.timers.tick(180000);await tick();assert.equal(h.calls.submit.length,0,'new default must not cause the old pending loop');
+ }finally{h.cleanup();t.mock.timers.reset();}
+});
+
+test('an older account draft without the new appetite field adopts shared small appetite instead of resetting it',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=setup();try{
+  await tick();const remote=shared();remote.preferences.appetite='small';remote.state.settings.appetite='small';remote.state.plan.days.forEach(day=>day.meals.forEach(meal=>{meal.portionFactor=0.7;}));
+  const oldDraft=clone(remote.preferences);delete oldDraft.appetite;
+  h.storage.set('weekly-table-cloud-drafts-v1:owner',JSON.stringify({version:1,draft:oldDraft,basePreferences:remote.preferences,pantryDraft:{ingredientId:'egg',quantity:'2'}}));
+  h.emitAuth(owner);h.emitHome(home);h.setRemote(remote);h.emitData(remote);
+  assert.equal(h.draft.appetite,'small');assert.equal(h.state.settings.appetite,'small');
+  assert.equal(h.e('#cloud-status').textContent,'已同步');
+  t.mock.timers.tick(180000);await tick();assert.equal(h.calls.submit.length,0,'missing older-client field is not an explicit normal-appetite edit');
+ }finally{h.cleanup();t.mock.timers.reset();}
+});

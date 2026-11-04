@@ -122,3 +122,16 @@ test('backup-owned preferences and inventory can replace independent snapshots w
   assert.equal(draftMatchesSettings(restored,backupSettings),true);
   assert.deepEqual(sanitizeInventory(roundTrip(backupInventory),ids),backupInventory);
 });
+
+test('appetite survives draft persistence and legacy drafts default to normal without changing the saved menu',()=>{
+ const settings=defaults(),normalDraft=settingsToDraft(settings),plan=generatePlan(settings,[]),before=structuredClone(plan);
+ assert.equal(normalDraft.appetite,'normal');
+ const small=restoreDraft(roundTrip({version:2,draft:{...normalDraft,appetite:'small'}}),settings,defaults());
+ assert.equal(small.appetite,'small');assert.equal(draftToSettings(small,settings).appetite,'small');
+ assert.equal(draftMatchesSettings(small,settings),false);
+ assert.equal(draftMatchesSettings(small,{...settings,appetite:'small'}),true);
+ const legacy=roundTrip({version:2,draft:normalDraft});delete legacy.draft.appetite;
+ assert.equal(restoreDraft(legacy,settings,defaults()).appetite,'normal');
+ assert.deepEqual(plan,before,'remembering appetite cannot regenerate or alter an existing menu');
+ assert.equal(restoreDraft({version:2,draft:{...normalDraft,appetite:'unknown'}},settings,defaults()).appetite,'normal');
+});

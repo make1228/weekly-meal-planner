@@ -56,3 +56,5 @@
 .cloud-edit-locked{opacity:.65}.cloud-edit-locked button{cursor:wait}
 @media(max-width:760px){.cloud-panel{padding:3px 8px;margin-bottom:12px}.cloud-bar{gap:7px;min-height:32px}.cloud-bar h2{font-size:11px}.cloud-details>summary{line-height:30px}.cloud-options{padding:12px;max-height:65vh}.cloud-setup small{flex-basis:100%}}
 @media print{.cloud-panel{display:none!important}}
+
+.appetite-settings small{display:block;font-size:10px;color:#76836a;margin-top:5px;line-height:1.7}.check-chip input:disabled+span{opacity:.55;cursor:wait}@media(max-width:760px){.settings-panel .appetite-settings{grid-column:1/-1;margin-top:14px}.settings-panel .meal-settings,.settings-panel .cuisine-settings{margin-top:14px}}

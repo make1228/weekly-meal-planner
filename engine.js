@@ -46,12 +46,14 @@ function parseDate(value){
 }
 export function addDays(value,n){const d=parseDate(value);d.setUTCDate(d.getUTCDate()+n);return iso(d);}
 export function getMonday(value=iso(new Date())){const d=parseDate(value);d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return iso(d);}
-export const DEFAULT_SETTINGS = {startDate:getMonday(),weekdayPeople:2,weekendPeople:2,slots:['lunch','dinner'],maxMinutes:60,avoid:['青椒','茄子','酪梨','照燒','番茄','豬肉','雞肉調理包'],favorites:['義式','西式'],riceMeals:2,pastaMeals:1,feedback:{},seed:0};
+export const DEFAULT_SETTINGS = {startDate:getMonday(),weekdayPeople:2,weekendPeople:2,appetite:'normal',slots:['lunch','dinner'],maxMinutes:60,avoid:['青椒','茄子','酪梨','照燒','番茄','豬肉','雞肉調理包'],favorites:['義式','西式'],riceMeals:2,pastaMeals:1,feedback:{},seed:0};
 const round = n => Math.round((n+Number.EPSILON)*100)/100;
 export function formatQty(value,unit='g'){const n=Number(value);if(!Number.isFinite(n))return '0';return String(round(n));}
 function settingsWithDefaults(input={}){
  const s={...DEFAULT_SETTINGS,...input};
  s.startDate=getMonday(s.startDate);
+ if(s.appetite===undefined)s.appetite='normal';
+ appetiteFactor(s.appetite);
  for(const [key,label] of [['weekdayPeople','平日人數'],['weekendPeople','週末人數']]){s[key]=Number(s[key]);if(!Number.isInteger(s[key])||s[key]<1||s[key]>20)throw new Error(`${label}請填入 1 至 20 的整數。`);}
  s.maxMinutes=Number(s.maxMinutes);if(!Number.isFinite(s.maxMinutes)||s.maxMinutes<5||s.maxMinutes>180)throw new Error('備餐時間請設定為 5 至 180 分鐘。');
  if(!Array.isArray(s.slots)||!s.slots.length||s.slots.some(x=>!['lunch','dinner'].includes(x)))throw new Error('請至少選擇午餐或晚餐。');
@@ -98,8 +100,9 @@ export function generatePlan(input={},inventory=[],previousPlan){
    const previous=previousMeals.get(key);
    const r=choose(category,s,stock,used,previousProtein,position,category.length>1?previous:undefined);
    const servings=day>=5?s.weekendPeople:s.weekdayPeople;
-   meals.push({key,date,slot,recipeId:r.id,servings});used.set(r.id,(used.get(r.id)||0)+1);previousProtein=r.protein;
-   for(const item of r.ingredients)stock.set(item.ingredientId,Math.max(0,(stock.get(item.ingredientId)||0)-item.quantity*servings/r.baseServings));
+   const meal={key,date,slot,recipeId:r.id,servings};if(s.appetite==='small')meal.portionFactor=0.7;
+   meals.push(meal);used.set(r.id,(used.get(r.id)||0)+1);previousProtein=r.protein;
+   for(const item of r.ingredients)stock.set(item.ingredientId,Math.max(0,(stock.get(item.ingredientId)||0)-mealIngredientQuantity(meal,item)));
    position++;
   }
   days.push({date,weekday:day+1,dayLabel:['週一','週二','週三','週四','週五','週六','週日'][day],meals});
@@ -108,8 +111,31 @@ export function generatePlan(input={},inventory=[],previousPlan){
 }
 function validatePlan(plan){
  if(!plan||!Array.isArray(plan.days))throw new Error('菜單資料格式不正確，請重新產生菜單。');
- const keys=new Set();for(const day of plan.days){if(!Array.isArray(day.meals))throw new Error('菜單資料格式不正確。');for(const meal of day.meals){if(!recipeMap.has(meal.recipeId)||!Number.isFinite(Number(meal.servings))||Number(meal.servings)<=0||keys.has(meal.key))throw new Error('菜單含有無效的料理或份量，請重新產生。');if(meal.cooked!==undefined&&typeof meal.cooked!=='boolean')throw new Error('菜單中的已煮好狀態不正確，請重新設定。');keys.add(meal.key);}}
+ const keys=new Set();for(const day of plan.days){if(!Array.isArray(day.meals))throw new Error('菜單資料格式不正確。');for(const meal of day.meals){if(!recipeMap.has(meal.recipeId)||!Number.isFinite(Number(meal.servings))||Number(meal.servings)<=0||keys.has(meal.key))throw new Error('菜單含有無效的料理或份量，請重新產生。');mealPortionFactor(meal);if(meal.cooked!==undefined&&typeof meal.cooked!=='boolean')throw new Error('菜單中的已煮好狀態不正確，請重新設定。');keys.add(meal.key);}}
  return plan.days.flatMap(d=>d.meals);
+}
+function appetiteFactor(appetite){
+ if(!['normal','small'].includes(appetite))throw new Error('請選擇普通食量或小食量。');
+ return appetite==='small'?0.7:1;
+}
+// Keep the number of diners distinct from the ingredient portion multiplier.
+export function mealPortionFactor(meal){
+ const factor=meal?.portionFactor;
+ if(factor===undefined)return 1;
+ if(factor!==1&&factor!==0.7)throw new Error('餐點食量比例不正確，請選擇普通食量或小食量。');
+ return factor;
+}
+export function mealIngredientQuantity(meal,item){
+ const r=recipeMap.get(meal?.recipeId),servings=Number(meal?.servings);
+ if(!r||!Number.isFinite(servings)||servings<=0||!item||!ingredientMap.has(item.ingredientId)||!Number.isFinite(item.quantity)||item.quantity<=0)throw new Error('餐點食材或份量不正確。');
+ // Do not round each meal: shared ingredients must merge before final rounding.
+ return item.quantity*servings/r.baseServings*mealPortionFactor(meal);
+}
+export function setPlanAppetite(plan,appetite){
+ const factor=appetiteFactor(appetite);validatePlan(plan);
+ return {...plan,days:plan.days.map(day=>({...day,meals:day.meals.map(meal=>{
+  const next={...meal};if(factor===1)delete next.portionFactor;else next.portionFactor=factor;return next;
+ })}))};
 }
 export function setMealCooked(plan,mealKey,cookedBoolean){
  if(typeof cookedBoolean!=='boolean')throw new Error('已煮好狀態必須是勾選或取消勾選。');
@@ -160,7 +186,7 @@ export function replaceMeal(plan,mealKey,input={},inventory=[],selectedRecipeId,
 }
 export function aggregateShopping(plan,inventory=[]){
  const stock=inventoryMap(inventory),totals=new Map();
- for(const meal of validatePlan(plan)){if(meal.cooked===true)continue;const r=recipeMap.get(meal.recipeId);for(const item of r.ingredients){let row=totals.get(item.ingredientId);if(!row){const i=ingredientMap.get(item.ingredientId);row={ingredientId:i.id,name:i.name,unit:i.unit,category:i.category,required:0,stock:stock.get(i.id)||0,usedStock:0,toBuy:0,mealKeys:[]};totals.set(i.id,row);}row.required+=item.quantity*Number(meal.servings)/r.baseServings;row.mealKeys.push(meal.key);}}
+ for(const meal of validatePlan(plan)){if(meal.cooked===true)continue;const r=recipeMap.get(meal.recipeId);for(const item of r.ingredients){let row=totals.get(item.ingredientId);if(!row){const i=ingredientMap.get(item.ingredientId);row={ingredientId:i.id,name:i.name,unit:i.unit,category:i.category,required:0,stock:stock.get(i.id)||0,usedStock:0,toBuy:0,mealKeys:[]};totals.set(i.id,row);}row.required+=mealIngredientQuantity(meal,item);row.mealKeys.push(meal.key);}}
  const order=[...new Set(INGREDIENTS.map(i=>i.category))];
  return [...totals.values()].map(row=>{row.required=round(row.required);row.usedStock=round(Math.min(row.required,row.stock));row.toBuy=round(Math.max(0,row.required-row.usedStock));return row;}).sort((a,b)=>order.indexOf(a.category)-order.indexOf(b.category)||a.name.localeCompare(b.name,'zh-Hant'));
 }

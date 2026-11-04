@@ -191,3 +191,39 @@ test('cloud normalization keeps lunch before dinner when shared input arrives in
  for(const day of nextWeek.days)assert.deepEqual(day.meals.map(meal=>meal.slot),['lunch','dinner']);
  assert.equal(hasMutation(createMutation(initial(),snapshot)),false,'ordering correction alone does not create a shared edit');
 });
+
+test('legacy shared appetite is canonically normal without producing a phantom mutation',()=>{
+ const legacy=initial();delete legacy.state.settings.appetite;delete legacy.preferences.appetite;
+ const normalized=createSharedSnapshot(legacy.state,legacy.preferences);
+ assert.equal(normalized.state.settings.appetite,'normal');assert.equal(normalized.preferences.appetite,'normal');
+ assert.equal(hasMutation(createMutation(legacy,normalized)),false);
+ assert.equal(hasMutation(createMutation(normalized,legacy)),false);
+});
+
+test('small appetite preferences merge across devices without deleting omitted fields from older clients',()=>{
+ const base=initial();
+ const appetite=edit(base,next=>{next.preferences.appetite='small';});
+ const avoidance=edit(base,next=>{next.preferences.avoidText+='、香菜';});
+ const merged=applyMutation(applyMutation(base,appetite),avoidance);
+ assert.equal(merged.preferences.appetite,'small');assert.match(merged.preferences.avoidText,/香菜/);
+ assert.equal(merged.state.settings.appetite,'normal','draft preference alone does not alter the applied menu');
+ const partial=structuredClone(merged);partial.preferences={avoidText:merged.preferences.avoidText+'、洋蔥'};
+ const result=applyMutation(merged,createMutation(merged,partial));
+ assert.equal(result.preferences.appetite,'small');assert.match(result.preferences.avoidText,/洋蔥/);
+ assert.equal(validSharedPreferences({appetite:'unknown'},merged.preferences).appetite,'small');
+ assert.throws(()=>createSharedSnapshot({...base.state,settings:{...base.state.settings,appetite:'unknown'}},base.preferences),TypeError);
+});
+
+test('applying a smaller menu invalidates quantity checks and protects unseen cooked edits',()=>{
+ const base=initial(),row=firstNeeded(base),key=keys(base)[0];base.state.checked[row.ingredientId]=true;
+ const scaled=edit(base,next=>{
+  next.preferences.appetite='small';next.state.settings.appetite='small';
+  next.state.plan.days.forEach(day=>day.meals.forEach(item=>{item.portionFactor=0.7;}));
+ },{replacePlan:true});
+ const result=applyMutation(base,scaled);
+ assert.equal(result.state.settings.appetite,'small');assert.equal(result.preferences.appetite,'small');
+ assert.equal(result.state.checked[row.ingredientId],undefined);
+ for(const normal of aggregateShopping(base.state.plan)){const small=aggregateShopping(result.state.plan).find(item=>item.ingredientId===normal.ingredientId);assert.ok(Math.abs(small.required-normal.required*0.7)<0.02);}
+ const cooked=edit(base,next=>{next.state.plan=setMealCooked(next.state.plan,key,true);});
+ assert.throws(()=>applyMutation(applyMutation(base,cooked),scaled),SyncConflictError);
+});

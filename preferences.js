@@ -12,7 +12,7 @@ const unique=value=>[...new Set(value)];
 export const parseAvoid=text=>String(text??'').split(/[、,，\n;；]+/).map(x=>x.trim()).filter(Boolean);
 
 export function settingsToDraft(settings){
- return {weekdayPeople:String(settings.weekdayPeople),weekendPeople:String(settings.weekendPeople),slots:[...settings.slots],maxMinutes:String(settings.maxMinutes),favorites:[...settings.favorites],avoidText:settings.avoid.join('、'),riceMeals:String(settings.riceMeals),pastaMeals:String(settings.pastaMeals)};
+ return {appetite:settings.appetite==='small'?'small':'normal',weekdayPeople:String(settings.weekdayPeople),weekendPeople:String(settings.weekendPeople),slots:[...settings.slots],maxMinutes:String(settings.maxMinutes),favorites:[...settings.favorites],avoidText:settings.avoid.join('、'),riceMeals:String(settings.riceMeals),pastaMeals:String(settings.pastaMeals)};
 }
 function sanitizeDraft(raw,fallback){
  const draft=structuredClone(fallback);
@@ -20,6 +20,7 @@ function sanitizeDraft(raw,fallback){
  for(const key of ['weekdayPeople','weekendPeople','maxMinutes','riceMeals','pastaMeals']){
   if(own(raw,key)&&(typeof raw[key]==='string'||typeof raw[key]==='number')&&String(raw[key]).length<=40)draft[key]=String(raw[key]);
  }
+ if(['normal','small'].includes(raw.appetite))draft.appetite=raw.appetite;
  if(strings(raw.slots,new Set(['lunch','dinner'])))draft.slots=unique(raw.slots);
  if(strings(raw.favorites,cuisineValues))draft.favorites=unique(raw.favorites);
  if(own(raw,'avoidText')&&typeof raw.avoidText==='string'&&raw.avoidText.length<=20000)draft.avoidText=raw.avoidText;
@@ -40,10 +41,11 @@ export function restoreDraft(savedEnvelope,legacySettings,defaults){
  return sanitizeDraft(settingsToDraft(migrated),fallback);
 }
 export function draftToSettings(draft,baseSettings){
- return {...baseSettings,weekdayPeople:Number(draft.weekdayPeople),weekendPeople:Number(draft.weekendPeople),slots:[...draft.slots],maxMinutes:Number(draft.maxMinutes),favorites:[...draft.favorites],avoid:parseAvoid(draft.avoidText),riceMeals:Number(draft.riceMeals),pastaMeals:Number(draft.pastaMeals)};
+ return {...baseSettings,appetite:['normal','small'].includes(draft.appetite)?draft.appetite:(baseSettings.appetite||'normal'),weekdayPeople:Number(draft.weekdayPeople),weekendPeople:Number(draft.weekendPeople),slots:[...draft.slots],maxMinutes:Number(draft.maxMinutes),favorites:[...draft.favorites],avoid:parseAvoid(draft.avoidText),riceMeals:Number(draft.riceMeals),pastaMeals:Number(draft.pastaMeals)};
 }
 export function draftMatchesSettings(draft,settings){
  const input=draftToSettings(draft,settings);
+ if(input.appetite!==(settings.appetite||'normal'))return false;
  for(const key of ['weekdayPeople','weekendPeople','maxMinutes','riceMeals','pastaMeals'])if(input[key]!==Number(settings[key]))return false;
  for(const key of ['slots','favorites','avoid'])if(JSON.stringify(unique(input[key]).sort())!==JSON.stringify(unique(settings[key]).sort()))return false;
  return true;

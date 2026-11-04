@@ -40,6 +40,7 @@ export function validSharedPreferences(draft,previous={}){
   }
   if(Array.isArray(source.slots)&&source.slots.length>0&&source.slots.every(value=>['lunch','dinner'].includes(value)))result.slots=orderedSlots(source.slots);
   if(Array.isArray(source.favorites)&&source.favorites.every(value=>cuisineValues.has(value)))result.favorites=sortedUnique(source.favorites);
+  if(['normal','small'].includes(source.appetite))result.appetite=source.appetite;
   if(typeof source.avoidText==='string'&&source.avoidText.length<=20000)result.avoidText=source.avoidText;
  }
  return result;
@@ -47,6 +48,8 @@ export function validSharedPreferences(draft,previous={}){
 function normalizeState(raw){
  if(!object(raw)||raw.version!==1||!object(raw.settings)||!Array.isArray(raw.inventory)||!object(raw.plan)||!Array.isArray(raw.plan.days)||!object(raw.checked))throw new TypeError('共用菜單格式不正確。');
  const state=clone(raw);
+ if(state.settings.appetite===undefined)state.settings.appetite='normal';
+ if(!['normal','small'].includes(state.settings.appetite))throw new TypeError('共用食量設定格式不正確。');
  for(const key of ['slots','avoid','favorites']){if(!Array.isArray(state.settings[key])||state.settings[key].some(value=>typeof value!=='string'))throw new TypeError('共用餐桌設定格式不正確。');if(key==='slots'&&(!state.settings.slots.length||state.settings.slots.some(value=>!['lunch','dinner'].includes(value))))throw new TypeError('共用餐別格式不正確。');state.settings[key]=key==='slots'?orderedSlots(state.settings.slots):sortedUnique(state.settings[key]);}
  if(!object(state.settings.feedback))throw new TypeError('共用料理回饋格式不正確。');
  state.settings.feedback=Object.fromEntries(Object.entries(state.settings.feedback).filter(([key,value])=>!isUnsafeKey(key)&&object(value)&&Object.keys(value).length).map(([key,value])=>[key,value]));
@@ -63,7 +66,11 @@ function normalizeState(raw){
  aggregateShopping(state.plan,state.inventory);
  return state;
 }
-export function createSharedSnapshot(state,preferences){return {version:1,state:normalizeState(state),preferences:validSharedPreferences(preferences)};}
+export function createSharedSnapshot(state,preferences){
+ const normalizedState=normalizeState(state),normalizedPreferences=validSharedPreferences(preferences);
+ if(!own(normalizedPreferences,'appetite'))normalizedPreferences.appetite=normalizedState.settings.appetite;
+ return {version:1,state:normalizedState,preferences:normalizedPreferences};
+}
 function normalizeSnapshot(raw){if(!object(raw)||raw.version!==1||!object(raw.preferences))throw new TypeError('共用資料版本不正確。');return createSharedSnapshot(raw.state,raw.preferences);}
 function mealMap(plan){return new Map(plan.days.flatMap(day=>day.meals).map(meal=>[meal.key,meal]));}
 function planIdentity(plan){const {generatedAt,...stable}=plan;return {...stable,days:plan.days.map(day=>({...day,meals:day.meals.map(meal=>meal.key)}))};}
@@ -74,6 +81,9 @@ export const newGenerationId=()=>mutationId();
 
 export function createMutation(baseInput,nextInput,{replacePlan=false,replaceInventory=false}={}){
  const base=normalizeSnapshot(baseInput),next=normalizeSnapshot(nextInput);
+ // Missing appetite in a partial/older client draft means unchanged, never
+ // an implicit request to reset another household member's small setting.
+ if(!own(nextInput.preferences,'appetite'))delete next.preferences.appetite;
  next.preferences=validSharedPreferences(next.preferences,base.preferences);
  const oldMeals=mealMap(base.state.plan),newMeals=mealMap(next.state.plan);
  const changedMeals=[...newMeals].filter(([key,value])=>!equal(value,oldMeals.get(key)));
