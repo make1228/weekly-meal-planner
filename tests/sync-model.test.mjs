@@ -153,9 +153,11 @@ test('malformed inventory and incompatible shared versions are rejected at the b
 });
 
 test('an old-week uncheck cannot clear a newly checked item in the latest week',()=>{
- const base=initial(),row=firstNeeded(base);base.state.checked[row.ingredientId]=true;
+ const base=initial(),latest=structuredClone(base);latest.state.settings.startDate=addDays(latest.state.settings.startDate,7);latest.state.plan=generatePlan(latest.state.settings,[]);
+ const latestNeeded=new Set(aggregateShopping(latest.state.plan,[]).filter(row=>row.toBuy>0).map(row=>row.ingredientId));
+ const row=aggregateShopping(base.state.plan,[]).find(row=>row.toBuy>0&&latestNeeded.has(row.ingredientId));assert.ok(row,'the fixture needs an ingredient required in both weeks');
+ base.state.checked[row.ingredientId]=true;latest.state.checked[row.ingredientId]=true;
  const uncheck=edit(base,next=>{next.state.checked={};});
- const latest=structuredClone(base);latest.state.settings.startDate=addDays(latest.state.settings.startDate,7);latest.state.plan=generatePlan(latest.state.settings,[]);latest.state.checked[row.ingredientId]=true;
  assert.equal(applyMutation(latest,uncheck).state.checked[row.ingredientId],true);
 });
 

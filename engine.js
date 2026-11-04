@@ -1,13 +1,20 @@
+import {italianRecipes} from './recipes-italian.js';
+import {westernRecipes} from './recipes-western.js';
+import {homeRecipes} from './recipes-home.js';
 // AI 整理的內建食譜庫；數量、篩選、庫存扣除由下方程式計算。
 export const INGREDIENTS = [
  ['chicken','去骨雞腿','g','肉類與海鮮'],['breast','雞胸肉','g','肉類與海鮮'],['beef','牛小排','g','肉類與海鮮'],['lamb','羊排','g','肉類與海鮮'],['pork','豬里肌','g','肉類與海鮮'],['salmon','鮭魚','g','肉類與海鮮'],['halibut','比目魚','g','肉類與海鮮'],['shrimp','去殼蝦仁','g','肉類與海鮮'],['tuna','鮪魚罐頭','罐','肉類與海鮮'],
  ['egg','雞蛋','顆','蛋與豆製品'],['tofu','板豆腐','g','蛋與豆製品'],['edamame','毛豆仁','g','蛋與豆製品'],
  ['broccoli','花椰菜','g','蔬菜與菇類'],['cabbage','高麗菜','g','蔬菜與菇類'],['spinach','菠菜','g','蔬菜與菇類'],['bokchoy','青江菜','g','蔬菜與菇類'],['mushroom','綜合菇','g','蔬菜與菇類'],['tomato','番茄','g','蔬菜與菇類'],['onion','洋蔥','g','蔬菜與菇類'],['carrot','紅蘿蔔','g','蔬菜與菇類'],['zucchini','櫛瓜','g','蔬菜與菇類'],['cucumber','小黃瓜','g','蔬菜與菇類'],['lettuce','生菜','g','蔬菜與菇類'],['garlic','蒜頭','g','蔬菜與菇類'],['ginger','薑','g','蔬菜與菇類'],['scallion','青蔥','g','蔬菜與菇類'],['lemon','檸檬','顆','蔬菜與菇類'],
  ['rice','熟白飯（可用即食飯）','g','主食與調理包'],['pasta','義大利麵（乾重）','g','主食與調理包'],['chicken-kit','雞肉調理包','份','主食與調理包'],['beef-kit','牛肉調理包','份','主食與調理包'],['pork-kit','豬肉調理包','份','主食與調理包'],['fish-kit','魚肉調理包','份','主食與調理包'],
+ ['scallop','干貝','g','肉類與海鮮'],['clams','蛤蜊（帶殼、已吐沙）','g','肉類與海鮮'],['squid','透抽','g','肉類與海鮮'],['seabass','鱸魚片','g','肉類與海鮮'],
+ ['asparagus','蘆筍','g','蔬菜與菇類'],['corn','玉米粒','g','蔬菜與菇類'],['potato','馬鈴薯','g','蔬菜與菇類'],['sweetpotato','地瓜','g','蔬菜與菇類'],['celery','芹菜','g','蔬菜與菇類'],
+ ['cream','鮮奶油','ml','調味與其他'],['cheese','起司','g','調味與其他'],['parmesan','帕瑪森起司','g','調味與其他'],['mozzarella','莫札瑞拉起司','g','調味與其他'],['blue-cheese','藍紋起司','g','調味與其他'],['cheddar','切達起司','g','調味與其他'],
+ ['pesto','羅勒青醬（含起司、堅果）','g','調味與其他'],['mentaiko','明太子','g','調味與其他'],['truffle','松露醬','g','調味與其他'],['mustard','芥末醬','g','調味與其他'],['honey','蜂蜜','g','調味與其他'],['rosemary','迷迭香','g','調味與其他'],['basil','羅勒','g','調味與其他'],['paprika','紅椒粉（甜椒）','g','調味與其他'],['curry','咖哩粉','g','調味與其他'],['cumin','孜然粉','g','調味與其他'],['yogurt','無糖優格','g','調味與其他'],
  ['oil','橄欖油','ml','調味與其他'],['soy','醬油','ml','調味與其他'],['salt','鹽','g','調味與其他'],['pepper','黑胡椒','g','調味與其他'],['milk','牛奶','ml','調味與其他'],['butter','奶油','g','調味與其他'],['sesame','白芝麻','g','調味與其他']
 ].map(([id,name,unit,category])=>({id,name,unit,category}));
 const ingredientMap = new Map(INGREDIENTS.map(x=>[x.id,x]));
-const recipe = (id,title,cuisine,protein,minutes,equipment,starch,items,steps,tag='高蛋白')=>({id,title,cuisine,protein,minutes,equipment,starch,tag,baseServings:2,description:`${protein}搭配時蔬，${minutes} 分鐘完成的家常餐盤。`,ingredients:items.map(([ingredientId,quantity])=>({ingredientId,quantity})),steps});
+const recipe = (id,title,cuisine,protein,minutes,equipment,starch,items,steps,tag='高蛋白')=>({id,title,cuisine,protein,minutes,equipment,starch,tag,source:{kind:'ai-curated',label:'AI 整理的內建食譜'},baseServings:2,description:`${title}，預估 ${minutes} 分鐘完成的家常料理。`,ingredients:items.map(([ingredientId,quantity])=>({ingredientId,quantity})),steps});
 export const RECIPES = [
  recipe('lemon-chicken','檸檬香煎雞腿佐花椰菜','西式','雞肉',25,'IH 爐','low',[['chicken',360],['broccoli',300],['lemon',1],['garlic',10],['oil',15],['salt',2],['pepper',1]],['雞腿擦乾，以鹽、黑胡椒與檸檬汁醃一下。','平底鍋加油，雞皮朝下煎香，再翻面煎至全熟。','花椰菜蒸熟，與雞腿盛盤，淋上剩餘檸檬汁。']),
  recipe('steamed-halibut','薑蔥蒸比目魚與青江菜','台式','魚肉',20,'蒸烤爐','low',[['halibut',360],['bokchoy',300],['ginger',15],['scallion',20],['soy',15],['oil',5]],['比目魚放入蒸盤，鋪上薑絲，青江菜洗淨備用。','蒸烤爐以蒸氣模式蒸至魚肉全熟，青菜另盤蒸熟。','魚肉淋醬油與少許油，撒蔥絲，搭配青江菜。']),
@@ -35,7 +42,8 @@ export const RECIPES = [
  recipe('pasta-chicken','番茄雞胸義大利麵','義式','雞肉',25,'IH 爐','pasta',[['pasta',140],['breast',300],['tomato',300],['onion',100],['garlic',10],['oil',15],['salt',2]],['義大利麵煮熟，雞胸切小塊，番茄與洋蔥切丁。','油鍋炒香蒜末與洋蔥，加入雞胸炒至全熟。','放番茄燉出汁後，加入麵拌勻調味。']),
  recipe('pasta-tuna','鮪魚番茄快手義大利麵','義式','魚肉',15,'IH 爐','pasta',[['pasta',140],['tuna',2],['tomato',300],['spinach',150],['garlic',10],['oil',15],['salt',2]],['義大利麵煮熟，同時將番茄切丁、菠菜洗淨。','油鍋炒香蒜末，加入番茄與鮪魚煮熱。','加入菠菜與麵拌炒至熟，以鹽調味。'],'快手料理'),
  recipe('pasta-mushroom','奶香菇菇雞肉義大利麵','義式','雞肉',25,'IH 爐','pasta',[['pasta',140],['breast',300],['mushroom',250],['milk',160],['garlic',10],['butter',15],['salt',2],['pepper',1]],['義大利麵煮熟，雞胸切小塊、菇剝開。','奶油炒香蒜末，加入雞胸與菇炒至全熟。','倒入牛奶稍煮，加入麵拌勻，以鹽與黑胡椒調味。']),
- recipe('pasta-egg','毛豆蛋香義大利麵','義式','蛋豆',15,'IH 爐','pasta',[['pasta',140],['egg',4],['edamame',200],['spinach',200],['garlic',10],['oil',15],['salt',2]],['義大利麵與毛豆煮熟，菠菜洗淨。','油鍋炒香蒜末，倒入蛋液炒至完全凝固。','加入菠菜、毛豆與麵，拌炒至熟並以鹽調味。'])
+ recipe('pasta-egg','毛豆蛋香義大利麵','義式','蛋豆',15,'IH 爐','pasta',[['pasta',140],['egg',4],['edamame',200],['spinach',200],['garlic',10],['oil',15],['salt',2]],['義大利麵與毛豆煮熟，菠菜洗淨。','油鍋炒香蒜末，倒入蛋液炒至完全凝固。','加入菠菜、毛豆與麵，拌炒至熟並以鹽調味。']),
+ ...italianRecipes(recipe),...westernRecipes(recipe),...homeRecipes(recipe)
 ];
 const recipeMap = new Map(RECIPES.map(x=>[x.id,x]));
 export const recipeById = id => recipeMap.get(id);
@@ -69,6 +77,7 @@ function inventoryMap(items=[]){
  const map=new Map();for(const row of items){if(!ingredientMap.has(row.ingredientId))throw new Error('庫存包含不支援的食材，請重新選擇。');const qty=Number(row.quantity);if(!Number.isFinite(qty)||qty<0||qty>1000000)throw new Error('庫存數量請填入 0 至 1,000,000 的有效數字。');map.set(row.ingredientId,round((map.get(row.ingredientId)||0)+qty));}return map;
 }
 function candidates(s){return RECIPES.filter(r=>r.minutes<=s.maxMinutes&&!s.avoid.some(word=>[r.title,r.protein,...r.ingredients.map(i=>ingredientMap.get(i.ingredientId).name)].some(t=>t.includes(word))));}
+export function getEligibleRecipes(input={}){return candidates(settingsWithDefaults(input));}
 function hash(str){let h=2166136261;for(const c of str){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
 function score(r,s,stock,used,previousProtein,position){
  let value=(hash(`${s.seed}|${s.startDate}|${position}|${r.id}`)%1000)/1000;
@@ -90,7 +99,7 @@ export function generatePlan(input={},inventory=[],previousPlan){
  // Spread planned starch meals across the week rather than clustering them.
  const wanted=[...Array(s.riceMeals).fill('rice'),...Array(s.pastaMeals).fill('pasta')];
  for(let i=0;i<wanted.length;i++){const index=Math.floor((i+0.5)*total/wanted.length);starches[index]=wanted[i];}
- for(const type of new Set(starches)){if(!pool.some(r=>r.starch===type))throw new Error(`目前條件沒有${type==='rice'?'白飯調理包':type==='pasta'?'義大利麵':'低澱粉'}料理，請調整餐數、忌口或備餐時間。`);}
+ for(const type of new Set(starches)){if(!pool.some(r=>r.starch===type))throw new Error(`目前條件沒有${type==='rice'?'白飯餐':type==='pasta'?'義大利麵':'低澱粉'}料理，請調整餐數、忌口或備餐時間。`);}
  const used=new Map(),days=[];let previousProtein='',position=0;
  const previousMeals=new Map((previousPlan?.days||[]).flatMap(d=>d.meals||[]).map(m=>[m.key,m.recipeId]));
  for(let day=0;day<7;day++){
