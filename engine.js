@@ -1,6 +1,10 @@
 import {italianRecipes} from './recipes-italian.js';
 import {westernRecipes} from './recipes-western.js';
 import {homeRecipes} from './recipes-home.js';
+import {moreItalianRecipes} from './recipes-more-italian.js';
+import {moreWesternRecipes} from './recipes-more-western.js';
+import {moreAmericanRecipes} from './recipes-more-american.js';
+import {moreTaiwanRecipes} from './recipes-more-taiwan.js';
 // AI 整理的內建食譜庫；數量、篩選、庫存扣除由下方程式計算。
 export const INGREDIENTS = [
  ['chicken','去骨雞腿','g','肉類與海鮮'],['breast','雞胸肉','g','肉類與海鮮'],['beef','牛小排','g','肉類與海鮮'],['lamb','羊排','g','肉類與海鮮'],['pork','豬里肌','g','肉類與海鮮'],['salmon','鮭魚','g','肉類與海鮮'],['halibut','比目魚','g','肉類與海鮮'],['shrimp','去殼蝦仁','g','肉類與海鮮'],['tuna','鮪魚罐頭','罐','肉類與海鮮'],
@@ -43,7 +47,8 @@ export const RECIPES = [
  recipe('pasta-tuna','鮪魚番茄快手義大利麵','義式','魚肉',15,'IH 爐','pasta',[['pasta',140],['tuna',2],['tomato',300],['spinach',150],['garlic',10],['oil',15],['salt',2]],['義大利麵煮熟，同時將番茄切丁、菠菜洗淨。','油鍋炒香蒜末，加入番茄與鮪魚煮熱。','加入菠菜與麵拌炒至熟，以鹽調味。'],'快手料理'),
  recipe('pasta-mushroom','奶香菇菇雞肉義大利麵','義式','雞肉',25,'IH 爐','pasta',[['pasta',140],['breast',300],['mushroom',250],['milk',160],['garlic',10],['butter',15],['salt',2],['pepper',1]],['義大利麵煮熟，雞胸切小塊、菇剝開。','奶油炒香蒜末，加入雞胸與菇炒至全熟。','倒入牛奶稍煮，加入麵拌勻，以鹽與黑胡椒調味。']),
  recipe('pasta-egg','毛豆蛋香義大利麵','義式','蛋豆',15,'IH 爐','pasta',[['pasta',140],['egg',4],['edamame',200],['spinach',200],['garlic',10],['oil',15],['salt',2]],['義大利麵與毛豆煮熟，菠菜洗淨。','油鍋炒香蒜末，倒入蛋液炒至完全凝固。','加入菠菜、毛豆與麵，拌炒至熟並以鹽調味。']),
- ...italianRecipes(recipe),...westernRecipes(recipe),...homeRecipes(recipe)
+ ...italianRecipes(recipe),...westernRecipes(recipe),...homeRecipes(recipe),
+ ...moreItalianRecipes(recipe),...moreWesternRecipes(recipe),...moreAmericanRecipes(recipe),...moreTaiwanRecipes(recipe)
 ];
 const recipeMap = new Map(RECIPES.map(x=>[x.id,x]));
 export const recipeById = id => recipeMap.get(id);
@@ -54,7 +59,7 @@ function parseDate(value){
 }
 export function addDays(value,n){const d=parseDate(value);d.setUTCDate(d.getUTCDate()+n);return iso(d);}
 export function getMonday(value=iso(new Date())){const d=parseDate(value);d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return iso(d);}
-export const DEFAULT_SETTINGS = {startDate:getMonday(),weekdayPeople:2,weekendPeople:2,appetite:'normal',slots:['lunch','dinner'],maxMinutes:60,avoid:['青椒','茄子','酪梨','照燒','番茄','豬肉','雞肉調理包'],favorites:['義式','西式'],riceMeals:2,pastaMeals:1,feedback:{},seed:0};
+export const DEFAULT_SETTINGS = {startDate:getMonday(),weekdayPeople:2,weekendPeople:2,weekdayChildren:0,weekendChildren:0,appetite:'normal',slots:['lunch','dinner'],maxMinutes:60,avoid:['青椒','茄子','酪梨','照燒','番茄','豬肉','雞肉調理包'],favorites:['義式','西式'],riceMeals:2,pastaMeals:1,feedback:{},seed:0};
 const round = n => Math.round((n+Number.EPSILON)*100)/100;
 export function formatQty(value,unit='g'){const n=Number(value);if(!Number.isFinite(n))return '0';return String(round(n));}
 function settingsWithDefaults(input={}){
@@ -62,7 +67,8 @@ function settingsWithDefaults(input={}){
  s.startDate=getMonday(s.startDate);
  if(s.appetite===undefined)s.appetite='normal';
  appetiteFactor(s.appetite);
- for(const [key,label] of [['weekdayPeople','平日人數'],['weekendPeople','週末人數']]){s[key]=Number(s[key]);if(!Number.isInteger(s[key])||s[key]<1||s[key]>20)throw new Error(`${label}請填入 1 至 20 的整數。`);}
+ for(const [key,label] of [['weekdayPeople','平日大人'],['weekendPeople','週末大人'],['weekdayChildren','平日小孩'],['weekendChildren','週末小孩']]){s[key]=Number(s[key]??0);if(!Number.isInteger(s[key])||s[key]<0||s[key]>12)throw new Error(`${label}請填入 0 至 12 的整數。`);}
+ equivalentServings(s.weekdayPeople,s.weekdayChildren);equivalentServings(s.weekendPeople,s.weekendChildren);
  s.maxMinutes=Number(s.maxMinutes);if(!Number.isFinite(s.maxMinutes)||s.maxMinutes<5||s.maxMinutes>180)throw new Error('備餐時間請設定為 5 至 180 分鐘。');
  if(!Array.isArray(s.slots)||!s.slots.length||s.slots.some(x=>!['lunch','dinner'].includes(x)))throw new Error('請至少選擇午餐或晚餐。');
  s.slots=['lunch','dinner'].filter(x=>s.slots.includes(x));
@@ -108,8 +114,9 @@ export function generatePlan(input={},inventory=[],previousPlan){
    const key=`${date}-${slot}`,type=starches[position],category=pool.filter(r=>r.starch===type);
    const previous=previousMeals.get(key);
    const r=choose(category,s,stock,used,previousProtein,position,category.length>1?previous:undefined);
-   const servings=day>=5?s.weekendPeople:s.weekdayPeople;
-   const meal={key,date,slot,recipeId:r.id,servings};if(s.appetite==='small')meal.portionFactor=0.7;
+   const adults=day>=5?s.weekendPeople:s.weekdayPeople,children=day>=5?s.weekendChildren:s.weekdayChildren;
+   const meal={key,date,slot,recipeId:r.id,servings:equivalentServings(adults,children)};
+   if(children>0){meal.adults=adults;meal.children=children;}if(s.appetite==='small')meal.portionFactor=0.7;
    meals.push(meal);used.set(r.id,(used.get(r.id)||0)+1);previousProtein=r.protein;
    for(const item of r.ingredients)stock.set(item.ingredientId,Math.max(0,(stock.get(item.ingredientId)||0)-mealIngredientQuantity(meal,item)));
    position++;
@@ -120,12 +127,26 @@ export function generatePlan(input={},inventory=[],previousPlan){
 }
 function validatePlan(plan){
  if(!plan||!Array.isArray(plan.days))throw new Error('菜單資料格式不正確，請重新產生菜單。');
- const keys=new Set();for(const day of plan.days){if(!Array.isArray(day.meals))throw new Error('菜單資料格式不正確。');for(const meal of day.meals){if(!recipeMap.has(meal.recipeId)||!Number.isFinite(Number(meal.servings))||Number(meal.servings)<=0||keys.has(meal.key))throw new Error('菜單含有無效的料理或份量，請重新產生。');mealPortionFactor(meal);if(meal.cooked!==undefined&&typeof meal.cooked!=='boolean')throw new Error('菜單中的已煮好狀態不正確，請重新設定。');keys.add(meal.key);}}
+ const keys=new Set();for(const day of plan.days){if(!Array.isArray(day.meals))throw new Error('菜單資料格式不正確。');for(const meal of day.meals){if(!recipeMap.has(meal.recipeId)||!Number.isFinite(Number(meal.servings))||Number(meal.servings)<=0||keys.has(meal.key))throw new Error('菜單含有無效的料理或份量，請重新產生。');mealDiners(meal);mealPortionFactor(meal);if(meal.cooked!==undefined&&typeof meal.cooked!=='boolean')throw new Error('菜單中的已煮好狀態不正確，請重新設定。');keys.add(meal.key);}}
  return plan.days.flatMap(d=>d.meals);
 }
 function appetiteFactor(appetite){
  if(!['normal','small'].includes(appetite))throw new Error('請選擇普通食量或小食量。');
  return appetite==='small'?0.7:1;
+}
+// Servings store adult equivalents; actual headcounts are retained separately
+// when children are present. Appetite applies later to ingredient demand only.
+export function equivalentServings(adults,children=0){
+ if(![adults,children].every(value=>Number.isInteger(value)&&value>=0&&value<=12))throw new Error('大人與小孩人數請填入 0 至 12 的整數。');
+ if(adults+children<1)throw new Error('平日與週末都至少需要 1 位大人或小孩。');
+ return round(adults+children*0.7);
+}
+export function mealDiners(meal){
+ const servings=Number(meal?.servings),hasAdults=Object.prototype.hasOwnProperty.call(meal||{},'adults'),hasChildren=Object.prototype.hasOwnProperty.call(meal||{},'children');
+ if(!Number.isFinite(servings)||servings<=0)throw new Error('餐點份量不正確。');
+ if(!hasAdults&&!hasChildren)return {adults:servings,children:0};
+ if(!hasAdults||!hasChildren||Math.abs(equivalentServings(meal.adults,meal.children)-servings)>1e-9)throw new Error('餐點的大人、小孩人數與份量不一致。');
+ return {adults:meal.adults,children:meal.children};
 }
 // Keep the number of diners distinct from the ingredient portion multiplier.
 export function mealPortionFactor(meal){
@@ -137,6 +158,7 @@ export function mealPortionFactor(meal){
 export function mealIngredientQuantity(meal,item){
  const r=recipeMap.get(meal?.recipeId),servings=Number(meal?.servings);
  if(!r||!Number.isFinite(servings)||servings<=0||!item||!ingredientMap.has(item.ingredientId)||!Number.isFinite(item.quantity)||item.quantity<=0)throw new Error('餐點食材或份量不正確。');
+ mealDiners(meal);
  // Do not round each meal: shared ingredients must merge before final rounding.
  return item.quantity*servings/r.baseServings*mealPortionFactor(meal);
 }
@@ -145,6 +167,18 @@ export function setPlanAppetite(plan,appetite){
  return {...plan,days:plan.days.map(day=>({...day,meals:day.meals.map(meal=>{
   const next={...meal};if(factor===1)delete next.portionFactor;else next.portionFactor=factor;return next;
  })}))};
+}
+export function setPlanDiners(plan,settings){
+ const s=settingsWithDefaults(settings),factor=appetiteFactor(s.appetite);validatePlan(plan);
+ return {...plan,days:plan.days.map((day,index)=>{
+  const weekend=index>=5,adults=weekend?s.weekendPeople:s.weekdayPeople,children=weekend?s.weekendChildren:s.weekdayChildren;
+  return {...day,meals:day.meals.map(meal=>{
+   const next={...meal,servings:equivalentServings(adults,children)};
+   if(children>0){next.adults=adults;next.children=children;}else{delete next.adults;delete next.children;}
+   if(factor===1)delete next.portionFactor;else next.portionFactor=factor;
+   return next;
+  })};
+ })};
 }
 export function setMealCooked(plan,mealKey,cookedBoolean){
  if(typeof cookedBoolean!=='boolean')throw new Error('已煮好狀態必須是勾選或取消勾選。');

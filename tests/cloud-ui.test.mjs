@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {installCloudSync} from '../cloud-ui.js';
-import {DEFAULT_SETTINGS,generatePlan,aggregateShopping} from '../engine.js';
+import {DEFAULT_SETTINGS,generatePlan,aggregateShopping,setPlanDiners} from '../engine.js';
 import {settingsToDraft} from '../preferences.js';
 import {createSharedSnapshot,applyMutation} from '../sync-model.js';
 
@@ -450,5 +450,45 @@ test('an older account draft without the new appetite field adopts shared small 
   assert.equal(h.draft.appetite,'small');assert.equal(h.state.settings.appetite,'small');
   assert.equal(h.e('#cloud-status').textContent,'已同步');
   t.mock.timers.tick(180000);await tick();assert.equal(h.calls.submit.length,0,'missing older-client field is not an explicit normal-appetite edit');
+ }finally{h.cleanup();t.mock.timers.reset();}
+});
+
+test('legacy household records receive zero children without pending status or minute writes',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=setup();try{
+  await tick();h.emitAuth(owner);h.emitHome(home);
+  const legacy=shared();for(const key of ['weekdayChildren','weekendChildren']){delete legacy.state.settings[key];delete legacy.preferences[key];}
+  h.setRemote(legacy);h.emitData(legacy);
+  assert.equal(h.state.settings.weekdayChildren,0);assert.equal(h.state.settings.weekendChildren,0);
+  assert.equal(h.draft.weekdayChildren,'0');assert.equal(h.draft.weekendChildren,'0');assert.equal(h.e('#cloud-status').textContent,'已同步');
+  t.mock.timers.tick(180000);await tick();assert.equal(h.calls.submit.length,0);
+ }finally{h.cleanup();t.mock.timers.reset();}
+});
+
+test('an older account draft adopts shared child counts without resetting the household menu',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=setup();try{
+  await tick();const remote=shared();remote.state.settings={...remote.state.settings,weekdayChildren:1,weekendChildren:2,appetite:'small'};
+  remote.state.plan=setPlanDiners(remote.state.plan,remote.state.settings);remote.preferences=settingsToDraft(remote.state.settings);
+  const oldDraft=clone(remote.preferences),oldBase=clone(remote.preferences);
+  for(const key of ['weekdayChildren','weekendChildren']){delete oldDraft[key];delete oldBase[key];}
+  h.storage.set('weekly-table-cloud-drafts-v1:owner',JSON.stringify({version:1,draft:oldDraft,basePreferences:oldBase,pantryDraft:{ingredientId:'egg',quantity:'2'}}));
+  h.emitAuth(owner);h.emitHome(home);h.setRemote(remote);h.emitData(remote);
+  assert.equal(h.draft.weekdayChildren,'1');assert.equal(h.draft.weekendChildren,'2');assert.deepEqual(h.state.plan,remote.state.plan);
+  assert.equal(h.e('#cloud-status').textContent,'已同步');t.mock.timers.tick(180000);await tick();assert.equal(h.calls.submit.length,0);
+ }finally{h.cleanup();t.mock.timers.reset();}
+});
+
+test('empty household drafts remain local while valid child-only counts synchronize together',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const h=await connected();try{
+  const before=clone(h.state);h.setRemote(createSharedSnapshot(before,settingsToDraft(before.settings)));
+  h.draft.weekdayPeople='0';h.draft.weekdayChildren='0';h.controller.noteDraftChange();
+  t.mock.timers.tick(61000);await tick();assert.equal(h.calls.submit.length,0);assert.equal(h.draft.weekdayPeople,'0');assert.equal(h.draft.weekdayChildren,'0');
+  assert.equal(h.e('#cloud-status').textContent,'已同步');assert.deepEqual(h.state,before);
+  h.draft.weekdayChildren='2';h.controller.noteDraftChange();t.mock.timers.tick(701);await tick();
+  assert.equal(h.calls.submit.length,1);assert.deepEqual(h.calls.submit[0].preferences.map(operation=>operation.key),['weekdayChildren','weekdayPeople']);
+  assert.equal(h.draft.weekdayPeople,'0');assert.equal(h.draft.weekdayChildren,'2');assert.deepEqual(h.state,before,'syncing drafts does not apply them to the existing menu');
+  assert.equal(h.e('#cloud-status').textContent,'已同步');
  }finally{h.cleanup();t.mock.timers.reset();}
 });

@@ -9,7 +9,7 @@ const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof v
 const equal=(a,b)=>JSON.stringify(canonical(a))===JSON.stringify(canonical(b));
 const DRAFT_PREFIX='weekly-table-cloud-drafts-v1:';
 const PENDING_PREFIX='weekly-table-cloud-pending-v1:';
-const EDIT_CONTROLS='#settings-form [type=submit],[name=appetite],#pantry-form [type=submit],[data-remove],[data-swap],[data-cooked],[data-buy],#clear-checked,[data-feedback],[data-portion],#import-button,#prev-week,#next-week,#start-date,#replacement-random,[data-select-recipe]';
+const EDIT_CONTROLS='#settings-form [type=submit],[name=appetite],.family-settings input,#pantry-form [type=submit],[data-remove],[data-swap],[data-cooked],[data-buy],#clear-checked,[data-feedback],[data-portion],#import-button,#prev-week,#next-week,#start-date,#replacement-random,[data-select-recipe]';
 
 /** Keeps personal browser data separate from the signed-in household. */
 export function installCloudSync(adapter,{config=firebaseConfig,transport=createFirebaseSync}={}){

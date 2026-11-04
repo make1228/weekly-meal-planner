@@ -1,4 +1,4 @@
-import {INGREDIENTS,aggregateShopping} from './engine.js';
+import {INGREDIENTS,aggregateShopping,equivalentServings} from './engine.js';
 
 // Shared data deliberately excludes unfinished form input and all device identity.
 const ingredientIds=new Set(INGREDIENTS.map(item=>item.id));
@@ -32,11 +32,18 @@ export function validSharedPreferences(draft,previous={}){
  const result={};
  for(const source of [previous,draft]){
   if(!object(source))continue;
-  for(const key of ['weekdayPeople','weekendPeople','maxMinutes','riceMeals','pastaMeals']){
+  const before={...result};
+  for(const key of ['weekdayPeople','weekendPeople','weekdayChildren','weekendChildren','maxMinutes','riceMeals','pastaMeals']){
    const raw=source[key],value=Number(raw);
    if((typeof raw!=='number'&&typeof raw!=='string')||String(raw).trim()===''||!Number.isFinite(value))continue;
-   const valid=key==='maxMinutes'?value>=5&&value<=180:Number.isInteger(value)&&value>=(key.endsWith('People')?1:0)&&value<=(key.endsWith('People')?12:14);
+   const valid=key==='maxMinutes'?value>=5&&value<=180:Number.isInteger(value)&&value>=0&&value<=(key.endsWith('People')||key.endsWith('Children')?12:14);
    if(valid)result[key]=String(value);
+  }
+  // A child-only household is valid, but an empty household remains an
+  // unfinished device draft until one of its headcounts becomes positive.
+  for(const prefix of ['weekday','weekend']){
+   const adults=`${prefix}People`,children=`${prefix}Children`;
+   if(own(result,adults)&&Number(result[adults])+Number(result[children]??0)===0)for(const key of [adults,children]){if(own(before,key))result[key]=before[key];else delete result[key];}
   }
   if(Array.isArray(source.slots)&&source.slots.length>0&&source.slots.every(value=>['lunch','dinner'].includes(value)))result.slots=orderedSlots(source.slots);
   if(Array.isArray(source.favorites)&&source.favorites.every(value=>cuisineValues.has(value)))result.favorites=sortedUnique(source.favorites);
@@ -50,6 +57,10 @@ function normalizeState(raw){
  const state=clone(raw);
  if(state.settings.appetite===undefined)state.settings.appetite='normal';
  if(!['normal','small'].includes(state.settings.appetite))throw new TypeError('共用食量設定格式不正確。');
+ for(const prefix of ['weekday','weekend']){
+  if(state.settings[`${prefix}Children`]===undefined)state.settings[`${prefix}Children`]=0;
+  try{equivalentServings(state.settings[`${prefix}People`],state.settings[`${prefix}Children`]);}catch{throw new TypeError('共用大人與小孩人數格式不正確。');}
+ }
  for(const key of ['slots','avoid','favorites']){if(!Array.isArray(state.settings[key])||state.settings[key].some(value=>typeof value!=='string'))throw new TypeError('共用餐桌設定格式不正確。');if(key==='slots'&&(!state.settings.slots.length||state.settings.slots.some(value=>!['lunch','dinner'].includes(value))))throw new TypeError('共用餐別格式不正確。');state.settings[key]=key==='slots'?orderedSlots(state.settings.slots):sortedUnique(state.settings[key]);}
  if(!object(state.settings.feedback))throw new TypeError('共用料理回饋格式不正確。');
  state.settings.feedback=Object.fromEntries(Object.entries(state.settings.feedback).filter(([key,value])=>!isUnsafeKey(key)&&object(value)&&Object.keys(value).length).map(([key,value])=>[key,value]));
@@ -69,6 +80,7 @@ function normalizeState(raw){
 export function createSharedSnapshot(state,preferences){
  const normalizedState=normalizeState(state),normalizedPreferences=validSharedPreferences(preferences);
  if(!own(normalizedPreferences,'appetite'))normalizedPreferences.appetite=normalizedState.settings.appetite;
+ for(const key of ['weekdayChildren','weekendChildren'])if(!own(normalizedPreferences,key))normalizedPreferences[key]=String(normalizedState.settings[key]);
  return {version:1,state:normalizedState,preferences:normalizedPreferences};
 }
 function normalizeSnapshot(raw){if(!object(raw)||raw.version!==1||!object(raw.preferences))throw new TypeError('共用資料版本不正確。');return createSharedSnapshot(raw.state,raw.preferences);}
@@ -81,9 +93,9 @@ export const newGenerationId=()=>mutationId();
 
 export function createMutation(baseInput,nextInput,{replacePlan=false,replaceInventory=false}={}){
  const base=normalizeSnapshot(baseInput),next=normalizeSnapshot(nextInput);
- // Missing appetite in a partial/older client draft means unchanged, never
- // an implicit request to reset another household member's small setting.
- if(!own(nextInput.preferences,'appetite'))delete next.preferences.appetite;
+ // Fields absent from a partial/older client draft are unchanged, never an
+ // implicit request to reset another household member's newer preferences.
+ for(const key of ['appetite','weekdayChildren','weekendChildren'])if(!own(nextInput.preferences,key))delete next.preferences[key];
  next.preferences=validSharedPreferences(next.preferences,base.preferences);
  const oldMeals=mealMap(base.state.plan),newMeals=mealMap(next.state.plan);
  const changedMeals=[...newMeals].filter(([key,value])=>!equal(value,oldMeals.get(key)));
@@ -147,6 +159,13 @@ export function applyMutation(latestInput,mutation){
  }
  result.state.inventory=Object.entries(inventory).map(([ingredientId,quantity])=>({ingredientId,quantity}));
  mergeEntries(result.preferences,mutation.preferences,'preferences',conflicts);
+ // Individually valid edits can target different headcounts yet combine into
+ // an empty household. Reject that whole merge instead of silently dropping
+ // its preference fields during canonicalization.
+ for(const prefix of ['weekday','weekend']){
+  const adults=`${prefix}People`,children=`${prefix}Children`;
+  if(own(result.preferences,adults)&&own(result.preferences,children)&&Number(result.preferences[adults])+Number(result.preferences[children])===0)conflicts.push(`preferences.${adults}`,`preferences.${children}`);
+ }
  if(conflicts.length)throw new SyncConflictError(conflicts);
  if(!Number.isFinite(mutation.seedDelta))throw new TypeError('同步隨機種子格式不正確。');
  result.state.settings.seed=Number(result.state.settings.seed||0)+mutation.seedDelta;
