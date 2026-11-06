@@ -45,28 +45,30 @@ test('whole packages, unpublished amounts and weighed prices retain their distin
  assert.equal(storePriceLabel({...fixture,priceTwd:null,priceType:'not-public'}),'售價未公開');
  for(const priceTwd of [0,-1,NaN,Infinity,'79'])assert.throws(()=>storePriceLabel({...fixture,priceTwd}),TypeError);
  const html=renderStoreOffer({...fixture,priceTwd:null,priceType:'not-public'});
- assert.match(html,/290g／包 · 售價未公開/);assert.doesNotMatch(html,/NT\$0/);
+ assert.match(html,/290g／包/);assert.match(html,/售價未公開/);assert.doesNotMatch(html,/NT\$0/);
 });
 
-test('sold-out and substitute products retain visible status outside the disclosure',()=>{
+test('compact rows retain sold-out and substitute badges with complete details available',()=>{
  const html=renderStoreOffer({...fixture,availability:'out-of-stock',matchType:'substitute',notes:'須先吐沙2–3小時，非已吐沙商品。'});
  const visible=html.split('<details')[0];
  assert.match(visible,/全聯替代品/);
- assert.match(visible,/查核時已售完/);
- assert.match(visible,/須先吐沙2–3小時/);
+ assert.match(visible,/・售完/);
+ assert.match(html,/查核時已售完/);
+ assert.match(html,/須先吐沙2–3小時/);
  assert.match(renderStoreOffer(fixture),/依配送門市/);
 });
 
 test('ring-cut squid warns for filled recipes while whole PX Mart squid remains suitable',()=>{
  const recipes=[{id:'it2-spinach-stuffed-squid'}];
  const rings={...fixture,ingredientId:'squid',productName:'透抽圈 350g',notes:'已切圈。'};
- assert.match(renderStoreOffer(rings,recipes).split('<details')[0],/規格不同.*整尾透抽.*不適用/);
+ assert.match(renderStoreOffer(rings,recipes).split('<details')[0],/規格不同/);
+ assert.match(renderStoreOffer(rings,recipes),/整尾透抽.*不適用/);
  const whole={...rings,productName:'整尾透抽 350g',notes:'整尾，非切圈。'};
  assert.doesNotMatch(renderStoreOffer(whole,recipes).split('<details')[0],/規格不同|不適用/);
  const unknown={...rings,productName:'船凍透抽 230g',notes:'官網未明示筒身完整狀況，做鑲餡料理前請確認完整筒身。'};
  const unknownVisible=renderStoreOffer(unknown,recipes).split('<details')[0];
  assert.match(unknownVisible,/全聯・請確認規格/);
- assert.match(unknownVisible,/這道需整尾透抽；全聯頁面未明示筒身是否完整，請先確認。/);
+ assert.match(renderStoreOffer(unknown,recipes),/這道需整尾透抽；全聯頁面未明示筒身是否完整，請先確認。/);
  assert.doesNotMatch(unknownVisible,/不適用/);
  assert.doesNotMatch(renderStoreOffer(rings,[{id:'it2-squid-basil-pasta'}]).split('<details')[0],/規格不同|不適用/);
  const costco={...rings,retailerId:'costco',retailerName:'好市多',url:'https://www.costco.com.tw/p/123'};
@@ -78,7 +80,8 @@ test('pre-purged PX Mart clams do not inherit another retailer preparation warni
  const pxVisible=renderStoreOffer(clams).split('<details')[0];
  assert.doesNotMatch(pxVisible,/替代品|costco-prep|需先吐沙/);
  const costco={...clams,retailerId:'costco',retailerName:'好市多',url:'https://www.costco.com.tw/p/123',matchType:'substitute',notes:'需先吐沙2–3小時。'};
- assert.match(renderStoreOffer(costco).split('<details')[0],/好市多替代品.*需先吐沙2–3小時/);
+ assert.match(renderStoreOffer(costco).split('<details')[0],/好市多替代品/);
+ assert.match(renderStoreOffer(costco),/需先吐沙2–3小時/);
 });
 
 test('offer text is escaped and unsafe or unexpected source URLs never become links',()=>{

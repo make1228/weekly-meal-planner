@@ -55,13 +55,18 @@ function officialLink(offer){
 // Kept separate so the same offer semantics are used by recipe and shopping rows.
 export function renderStoreOffer(offer,recipes=[]){
  const {warning,badgeSuffix}=preparationMessage(offer,recipes);
- const badgeLabel=`${offer.retailerName}${badgeSuffix}`;
+ const soldOut=offer.availability==='out-of-stock';
+ const badgeLabel=`${offer.retailerName}${badgeSuffix}${soldOut?'・售完':''}`;
+ const fullPrice=storePriceLabel(offer);
+ const compactPrice=fullPrice.replace(/／整包裝$|（秤重計價）$/g,'');
+ const compactPackage=offer.packageLabel.replace(/公克/g,'g').replace(/公斤/g,'kg').replace(/毫升/g,'ml').replace(/公升/g,'L').replace(/\s*×\s*/g,'×').replace(/（(?:合計|共)/g,'（');
  const href=officialLink(offer);
  const badge=href
   ?`<a class="costco-badge" href="${escapeHTML(href)}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(offer.productName)}">${escapeHTML(badgeLabel)} ↗</a>`
   :`<span class="costco-badge">${escapeHTML(badgeLabel)}</span>`;
- const availability=offer.availability==='out-of-stock'?'查核時已售完':offer.retailerId==='pxmart'?'依配送門市':'';
- return `<div class="costco-offer retailer-offer retailer-${escapeHTML(offer.retailerId)}${warning?' costco-substitute':''}" data-retailer="${escapeHTML(offer.retailerId)}">${badge}<span class="costco-package">${escapeHTML(offer.packageLabel)} · ${escapeHTML(storePriceLabel(offer))}</span>${availability?`<small class="store-availability${offer.availability==='out-of-stock'?' store-sold-out':''}">${availability}</small>`:''}${warning?`<small class="costco-prep">${escapeHTML(warning)}</small>`:''}<details class="costco-details"><summary>商品與備料提醒</summary><p>${escapeHTML(offer.productName)}<br>${escapeHTML(offer.notes)}<br>查核：${escapeHTML(offer.checkedAt)}</p></details></div>`;
+ const availability=soldOut?'查核時已售完':offer.retailerId==='pxmart'?'依配送門市':'';
+ const detailLabel=`${offer.retailerName}商品與備料提醒${warning?`：${badgeSuffix}`:''}${soldOut?'：查核時已售完':''}`;
+ return `<div class="costco-offer retailer-offer retailer-${escapeHTML(offer.retailerId)}${warning?' costco-substitute':''}${soldOut?' store-sold-out':''}" data-retailer="${escapeHTML(offer.retailerId)}">${badge}<span class="costco-package" title="${escapeHTML(offer.packageLabel)}">${escapeHTML(compactPackage)}</span><span class="costco-price" title="${escapeHTML(fullPrice)}" aria-label="${escapeHTML(fullPrice)}">${escapeHTML(compactPrice)}</span><details class="costco-details"><summary aria-label="${escapeHTML(detailLabel)}" title="${escapeHTML(warning||detailLabel)}">${warning||soldOut?'⚠':'ⓘ'}</summary><div class="offer-details-content"><strong>${escapeHTML(offer.productName)}</strong><p>${escapeHTML(offer.packageLabel)} · ${escapeHTML(fullPrice)}</p>${availability?`<p class="store-availability">${availability}</p>`:''}${warning?`<p class="costco-prep">${escapeHTML(warning)}</p>`:''}<p>${escapeHTML(offer.notes)}</p><p>查核：${escapeHTML(offer.checkedAt)}</p></div></details></div>`;
 }
 
 export function renderIngredientOffers(ingredientId,recipes=[]){

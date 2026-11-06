@@ -74,3 +74,31 @@
 /* Two retained weeks: viewing a saved week never generates a new menu. */
 .week-switcher{flex-wrap:wrap;justify-content:flex-end;gap:9px}.week-choice{display:inline-flex;border:1px solid #d8e2cc;border-radius:9px;padding:3px;background:#f5f7f0;gap:3px}.week-choice-button{font-size:12px;padding:7px 12px;border-radius:6px;color:#7a8b6c;white-space:nowrap}.week-choice-button[aria-pressed=true]{background:#fff;color:#4e6d3f;box-shadow:0 1px 4px #364b2520;font-weight:600}.week-choice-button:hover{background:#eaf0e1}.week-date-range{font-size:12px;color:#718366;white-space:nowrap}.unplanned-week .primary-button{padding:10px 18px}.unplanned-week p{max-width:370px;margin:9px auto 0;line-height:1.8}
 @media(max-width:760px){.week-switcher{justify-content:flex-start}.week-choice-button{font-size:12px;padding:7px 13px}.week-date-range{font-size:11px}}
+
+/* One compact line per retailer; full specifications stay in the info disclosure. */
+.recipe-ingredient{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px}
+.recipe-ingredient-info{display:contents}
+.recipe-ingredient-info>.ingredient-offers{grid-column:1/-1;grid-row:2}
+.recipe-ingredient>.recipe-ingredient-quantity{grid-column:2;grid-row:1}
+.shopping-item{display:grid;grid-template-columns:17px minmax(0,1fr) auto;gap:3px 10px;align-items:start}
+.shopping-item-info{display:contents}
+.shopping-item-info>label{grid-column:2;grid-row:1}
+.shopping-item-info>.ingredient-offers{grid-column:2/-1;grid-row:2}
+.shopping-item>.shopping-quantity{grid-column:3;grid-row:1}
+.ingredient-offers{gap:1px;min-width:0;margin-top:2px}
+.ingredient-offers .retailer-offer{position:relative;display:flex;flex-wrap:nowrap;align-items:center;gap:5px;min-width:0;min-height:24px;margin:0;padding:0;font-size:11px;line-height:20px}
+.ingredient-offers .retailer-offer+.retailer-offer{border:0;padding:0}
+.retailer-offer>.costco-badge{flex:none;padding:0 4px;line-height:17px}
+.retailer-offer>.costco-package{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap!important;font-size:11px}
+.retailer-offer>.costco-price{flex:none;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;color:#536a46}
+.retailer-offer>.costco-details{flex:none;width:22px;margin:0;font-size:11px}
+.retailer-offer>.costco-details>summary{display:flex;align-items:center;justify-content:center;list-style:none;width:22px;height:22px;border-radius:4px;color:#6b7e5d;cursor:pointer;font-size:13px;line-height:1}
+.retailer-offer>.costco-details>summary::-webkit-details-marker{display:none}
+.retailer-offer>.costco-details>summary:hover,.retailer-offer>.costco-details[open]>summary{background:#e9efdf}
+.retailer-offer>.costco-details>summary:focus-visible{outline:2px solid var(--green);outline-offset:1px}
+.retailer-offer.costco-substitute>.costco-details>summary,.retailer-offer.store-sold-out>.costco-details>summary{color:#89692d;background:#fff4dc}
+.retailer-offer .offer-details-content{position:absolute;z-index:5;inset-inline:0;top:calc(100% + 2px);max-height:220px;overflow:auto;padding:10px 12px;border:1px solid #d6e0cb;border-radius:8px;background:#fdfef9;box-shadow:0 6px 20px #273a2925;white-space:normal;font-size:11px;line-height:1.7;color:#5c6d51;overflow-wrap:anywhere}
+.retailer-offer .offer-details-content strong{font-size:11px;font-weight:600}
+.retailer-offer .offer-details-content p{margin:5px 0 0;line-height:1.7}
+.retailer-offer .offer-details-content .store-availability,.retailer-offer .offer-details-content .costco-prep{font-size:11px}
+@media(max-width:760px){.shopping-item-info>.ingredient-offers{grid-column:1/-1}.ingredient-offers .retailer-offer{gap:4px}.retailer-offer>.costco-badge{font-size:10px}}
