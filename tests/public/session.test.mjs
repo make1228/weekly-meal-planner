@@ -67,3 +67,9 @@ test('reconnecting the same Firebase app does not reinitialize App Check or emul
  const second=await createAccountSync({config:{mode:'public',environment:'test',firebase:{projectId:'isolated-test'},appCheckSiteKey:'fixture'},sdk:f.sdk});
  assert.equal(second.available,true);assert.equal(f.calls.filter(x=>x.action==='app-check-initialize').length,1);second.destroy();
 });
+
+test('same-UID auth refresh during explicit linking does not cancel the approved account flow',async()=>{
+ const f=await fixture(),pending=f.client.linkProvider('apple.com',true);
+ await f.switchTo(f.user('A'));f.reauth.resolve({});await pending;
+ assert.equal(f.calls.filter(x=>x.action==='link').length,1);assert.equal(f.client.getUser().uid,'A');f.client.destroy();
+});

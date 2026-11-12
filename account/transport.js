@@ -71,6 +71,7 @@ export async function createAccountSync({config,applyMutation,validateSnapshot=v
  function clear(){unsubData();unsubProfile();unsubData=()=>{};unsubProfile=()=>{};latest=null;profile=null;profileRevision=0;}
  function provider(id){if(id==='apple.com'){const p=new sdk.OAuthProvider(id);p.addScope('email');p.addScope('name');return p;}if(id==='google.com'){const p=new sdk.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return p;}throw fail('auth/invalid-provider','不支援的登入方式。');}
  const unsubscribe=sdk.onAuthStateChanged(auth,async value=>{
+  if(user&&value?.uid===user.uid){user=value;onAuth(publicUser(value));return;}
   generation++;clear();user=value;onAuth(publicUser(value));onHome(null);
   if(!value){notify('signed-out');return;}
   const s={uid:value.uid,token:generation};notify('connecting');

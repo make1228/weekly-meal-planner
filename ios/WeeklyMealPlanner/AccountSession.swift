@@ -79,6 +79,7 @@ final class AccountSession: ObservableObject {
         authListener = nil; generation += 1
     }
     private func changedUser(_ user: User?) async {
+        if let user, uid == user.uid { return }
         generation += 1
         dataListener?.remove(); profileListener?.remove(); preferenceTimer?.cancel()
         snapshot = nil; catalogVersion = ""; profile = UserProfile(); profileRevision = 0; revision = 0
