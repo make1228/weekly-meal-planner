@@ -31,6 +31,8 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
  async function rateLimit(uid){
   const now=clock().getTime(),ref=db.doc('mealPlannerRateLimits/'+uid),bucket=Math.floor(now/60000);
   await db.runTransaction(async t=>{
+   const deletionJob=await t.get(db.doc('mealPlannerDeletionJobs/'+uid));
+   if(deletionJob.exists)throw error('failed-precondition',deletionJob.data().status==='completed'?'帳號已刪除。':'帳號正在刪除，請完成或重試刪除流程。',{reason:deletionJob.data().status==='completed'?'deleted':'deleting'});
    const old=(await t.get(ref)).data(),count=old?.bucket===bucket?old.count+1:1;
    if(count>120)throw error('resource-exhausted','操作太頻繁，請稍後重試。');
    t.set(ref,{bucket,count,expiresAt:new Date(now+120000)});
@@ -93,6 +95,7 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
  }
  async function deletion(uid){
   const ref=db.doc(accountPath(uid)),job=db.doc('mealPlannerDeletionJobs/'+uid);
+  let step='prepare';
   const a=await ref.get(),legacy=(await db.doc(bindingPath(uid)).get()).data(),previousJob=(await job.get()).data();
   const legacySource=legacy?.verified===true?legacy.sourceId:previousJob?.sourceId;
   if(a.exists){
@@ -102,9 +105,11 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
    });
   }
   try{
+   step='data';
    // Remove private UID data. Never alter the original legacy project source.
    // Remove the copied shared snapshot only after its last participant leaves.
    await db.recursiveDelete(db.collection(accountPath(uid)+'/data'));
+   step='binding';
    await db.doc(bindingPath(uid)).delete();
    if(typeof legacySource==='string'&&!legacySource.includes('/')){
     await db.runTransaction(async t=>{
@@ -114,15 +119,22 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
      else if(data.exists&&data.data().updatedBy===uid)t.update(shared,{updatedBy:'deleted-legacy-user'});
     });
    }
+   step='profile';
    await db.doc('mealPlannerRateLimits/'+uid).delete();
    await ref.delete();
+   step='auth';
    await job.set({status:'deleting',step:'auth',updatedAt:serverTimestamp()},{merge:true});
    try{await auth.revokeRefreshTokens(uid);await auth.deleteUser(uid);}catch(e){if(e.code!=='auth/user-not-found')throw e;}
-   await job.delete();
+   step='cleanup';
+   // Keep a minimal barrier for requests that authenticated before deletion
+   // but reach their transaction afterwards. No profile/source/content stays.
+   await job.set({status:'completed',step:'done',completedAt:serverTimestamp(),expiresAt:new Date(clock().getTime()+86400000)});
    return {status:'completed'};
   }catch(e){
-   await job.set({status:'retryable',step:'retry',errorCode:String(e.code||'internal'),updatedAt:serverTimestamp()},{merge:true});
-   throw error('unavailable','刪除尚未完成，可重新登入後重試。',{reason:'deletion-retry'});
+   const errorCode=String(e.code||'internal');
+   console.warn(JSON.stringify({event:'meal-deletion-retry',step,errorCode}));
+   await job.set({status:'retryable',step,errorCode,updatedAt:serverTimestamp()},{merge:true});
+   throw error('unavailable','刪除尚未完成，可重新登入後重試。',{reason:'deletion-retry',step,errorCode});
   }
  }
  return async function handle(input,context){

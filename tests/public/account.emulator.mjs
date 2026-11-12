@@ -189,10 +189,23 @@ test('interrupted account deletion records retry progress and rerun completes wi
  const context={uid:a.uid,provider:'google.com',authTime:Math.floor(Date.now()/1000)};
  await assert.rejects(service({action:'deleteAccount',payload:{confirmation:'DELETE_MY_ACCOUNT'}},context),e=>e.details.reason==='deletion-retry');
  context.authTime=Math.floor(Date.now()/1000); // simulate the required fresh reauthentication after revocation
- assert.equal((await service({action:'deletionStatus'},context)).status,'retryable');
+ const progress=await service({action:'deletionStatus'},context);assert.equal(progress.status,'retryable');assert.equal(progress.step,'auth');
  await assert.rejects(service({action:'bootstrap'},context),e=>e.details.reason==='deleting');
  assert.equal((await service({action:'deleteAccount',payload:{confirmation:'DELETE_MY_ACCOUNT'}},context)).status,'completed');
- assert.equal((await admin.doc('mealPlannerDeletionJobs/'+a.uid).get()).exists,false);
+ const receipt=(await admin.doc('mealPlannerDeletionJobs/'+a.uid).get()).data();assert.equal(receipt.status,'completed');assert.equal(receipt.sourceId,undefined);
+});
+
+test('deletion barrier rejects already-authenticated late work instead of recreating private data',async()=>{
+ const a=await user('late-after-delete');await a.call('bootstrap');
+ const saved=await adminAuth(getAdminApp('account-admin-tests')).getUser(a.uid);
+ await a.call('deleteAccount',{confirmation:'DELETE_MY_ACCOUNT'});
+ // A handler may have checked Auth just before another request deleted it.
+ const late=createAccountService({db:admin,auth:{getUser:async()=>saved},serverTimestamp:()=>new Date()});
+ const context={uid:a.uid,provider:'google.com',authTime:Math.floor(Date.now()/1000)};
+ await assert.rejects(late({action:'bootstrap'},context),e=>e.details.reason==='deleted');
+ assert.equal((await admin.doc('mealPlannerUsers/'+a.uid).get()).exists,false);
+ assert.equal((await admin.doc('mealPlannerUsers/'+a.uid+'/data/current').get()).exists,false);
+ assert.equal((await admin.doc('mealPlannerRateLimits/'+a.uid).get()).exists,false);
 });
 
 test('equal email across Google and Apple does not implicitly merge product accounts',async()=>{

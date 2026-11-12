@@ -20,5 +20,8 @@ try{
  if(!confirmed.exists()||confirmed.metadata.fromCache||confirmed.data().revision!==value.revision)throw new Error('Canonical Firestore state not confirmed.');
  if(!value.snapshot.state.plan.startDate||!value.snapshot.state.plan.nextWeek.plan.startDate)throw new Error('Two-week account contract missing.');
  console.log('Native backend readiness: Rules and server data confirmed after '+(Date.now()-started)+'ms');
+ const deleted=(await httpsCallable(functions,'mealAccount',{timeout:60000})({action:'deleteAccount',payload:{confirmation:'DELETE_MY_ACCOUNT'}})).data;
+ if(deleted.status!=='completed')throw new Error('Disposable account deletion did not complete.');
+ console.log('Native backend readiness: disposable account deletion confirmed after '+(Date.now()-started)+'ms');
 }catch(error){console.error('Native backend readiness failed:',error.code||'unknown',error.message);process.exitCode=1;}
 finally{await signOut(auth);await terminate(db);await deleteApp(app);clearTimeout(timeout);}

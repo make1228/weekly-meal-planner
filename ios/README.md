@@ -18,7 +18,7 @@ python3 scripts/generate-ios-project.py
 npm run dev
 ```
 
-3. 另開終端：`open ios/WeeklyMealPlanner.xcodeproj`。選 WeeklyMealPlanner scheme及 iPhone Simulator。在 Scheme > Run > Arguments加 `--emulator`。不用真實 GoogleService-Info.plist，也不用開真實 Firebase。
+3. 另開終端，先執行 `node scripts/warm-native-emulators.mjs`，確認Auth、callable及受Rules保護的實際讀取都成功，再執行 `open ios/WeeklyMealPlanner.xcodeproj`。選 WeeklyMealPlanner scheme及 iPhone Simulator。在 Scheme > Run > Arguments加 `--emulator`。不用真實 GoogleService-Info.plist，也不用開真實 Firebase。
 4. Cmd+U執行 XCTest（200道解碼／完整步驟、9組與Web相同份量測例，以及原生SDK↔獨立HTTP客戶端的共用資料／換帳號整合測試）。Test Action固定使用demo模擬器，沒有啟動本機後端時整合測試會明確skip；CI要求整合測試必須執行。Cmd+R啟動。App與 `http://127.0.0.1:4173/` 各按「測試帳號 A」會使用同一虛構provider subject／UID。
 5. 網站產生本週、App查看；App換一道／庫存加量／已煮／採買勾選，再看網站；雙方關閉重開，確認最新內容。切 B 應為全新空白，切回 A 恢復 A；兩週切換只讀。
 6. 以同時修改同欄位／不同欄位、關閉網路、重送待確認庫存、跨週一、背景恢復及移除權限驗證。離線只查看已確認快照；iOS Keychain以project+UID分隔，待確認操作用同id重送。

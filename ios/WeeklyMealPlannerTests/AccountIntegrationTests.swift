@@ -14,7 +14,7 @@ final class AccountIntegrationTests: XCTestCase {
         XCTFail(message())
         throw URLError(.timedOut)
     }
-    private func call(_ action: String, _ payload: [String: Any] = [:], token: String) async throws -> [String: Any] {
+    private func call(_ action: String, _ payload: [String: Any] = [:], token: String, fixture: String = "") async throws -> [String: Any] {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -23,7 +23,7 @@ final class AccountIntegrationTests: XCTestCase {
         let (data, response) = try await URLSession.shared.data(for: request)
         let raw = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard (response as? HTTPURLResponse)?.statusCode == 200, let result = raw?["result"] as? [String: Any] else {
-            XCTFail("Callable rejected integration request: " + String(data: data, encoding: .utf8)!)
+            XCTFail("Callable rejected \(action) \(fixture): " + String(data: data, encoding: .utf8)!)
             throw URLError(.badServerResponse)
         }
         return result
@@ -101,8 +101,8 @@ final class AccountIntegrationTests: XCTestCase {
         } catch { XCTAssertEqual((error as NSError).code, FirestoreErrorCode.permissionDenied.rawValue) }
         // Both are unique disposable fixture accounts, never actual people.
         let tokenB = try await XCTUnwrap(Auth.auth().currentUser).getIDToken()
-        _ = try await call("deleteAccount", ["confirmation": "DELETE_MY_ACCOUNT"], token: tokenB)
-        _ = try await call("deleteAccount", ["confirmation": "DELETE_MY_ACCOUNT"], token: tokenA)
+        _ = try await call("deleteAccount", ["confirmation": "DELETE_MY_ACCOUNT"], token: tokenB, fixture: "B")
+        _ = try await call("deleteAccount", ["confirmation": "DELETE_MY_ACCOUNT"], token: tokenA, fixture: "A")
         reopened.signOut()
         try await eventually("Sign-out retained private UI state") { reopened.uid == nil && reopened.snapshot == nil && reopened.shopping.isEmpty }
     }
