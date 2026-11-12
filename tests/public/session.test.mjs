@@ -4,10 +4,11 @@ import {createAccountSync} from '../../account/transport.js';
 import {emptyAccountSnapshot} from '../../account/model.js';
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 async function fixture(){
+ const app={name:'meal-public-test',options:{projectId:'isolated-test'}};
  const auth={currentUser:null},calls=[],homes=[],records=[],listeners=[];
  let authCallback,reauth=deferred(),profileReply=null,revoke=deferred();
  const snapshot=emptyAccountSnapshot(),record={snapshot,revision:1,recentMutationIds:[],profile:{displayName:'',equipment:[]},profileRevision:1,dataPath:'unused'};
- const sdk={getApps:()=>[],initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),getFunctions:()=>({}),initializeAppCheck(){},ReCaptchaEnterpriseProvider:class{},
+ const sdk={getApps:()=>[app],initializeApp:()=>app,getAuth:()=>auth,getFirestore:()=>({}),getFunctions:()=>({}),initializeAppCheck(){calls.push({action:'app-check-initialize'});},ReCaptchaEnterpriseProvider:class{},
   httpsCallable:()=>async request=>{calls.push(request);if(request.action==='profile'&&profileReply)return profileReply.promise;return {data:structuredClone(record)};},
   onAuthStateChanged:(_,cb)=>{authCallback=cb;return ()=>{};},
   doc:(_,path)=>path,onSnapshot:(path,...args)=>{listeners.push({path,callback:args.find(x=>typeof x==='function')});return ()=>{};},
@@ -18,7 +19,7 @@ async function fixture(){
  const user=(uid,provider='google.com')=>({uid,email:uid+'@example.test',providerData:[{providerId:provider}]});
  const switchTo=async value=>{auth.currentUser=value;await authCallback(value);};
  await switchTo(user('A'));
- return {client,calls,homes,records,listeners,user,switchTo,reauth,revoke,profileHold:()=>profileReply=deferred()};
+ return {sdk,client,calls,homes,records,listeners,user,switchTo,reauth,revoke,profileHold:()=>profileReply=deferred()};
 }
 test('provider linking is cancelled if the UID changes during original-provider reauthentication',async()=>{
  const f=await fixture(),pending=f.client.linkProvider('apple.com',true);
@@ -59,4 +60,10 @@ test('an unsupported catalog version stops the live session instead of reinterpr
  const count=f.records.length;
  callback({metadata:{fromCache:false,hasPendingWrites:false},exists:()=>true,data:()=>({snapshot:emptyAccountSnapshot(),revision:99,catalogVersion:'unsupported-future-version'})});
  assert.equal(f.records.length,count);assert.equal(f.homes.at(-1),null);assert.equal(f.client.getProfile(),null);f.client.destroy();
+});
+
+test('reconnecting the same Firebase app does not reinitialize App Check or emulator transports',async()=>{
+ const f=await fixture();f.client.destroy();
+ const second=await createAccountSync({config:{mode:'public',environment:'test',firebase:{projectId:'isolated-test'},appCheckSiteKey:'fixture'},sdk:f.sdk});
+ assert.equal(second.available,true);assert.equal(f.calls.filter(x=>x.action==='app-check-initialize').length,1);second.destroy();
 });

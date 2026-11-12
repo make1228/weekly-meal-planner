@@ -91,6 +91,14 @@ struct InventoryView: View {
         guard let uid = session.uid, let project = session.configuration?.projectID else { return }
         try? PendingStore.write(["ingredientId": ingredientID, "quantity": quantity], key: "pantry:" + PendingStore.key(uid, project: project))
     }
+    private func inventoryLabel(_ id: String) -> String {
+        let row = session.inventory.first { $0["ingredientId"] as? String == id }
+        let ingredient = session.catalog?.ingredients.first { $0.id == id }
+        let amount: Double = row?["quantity"] as? Double ?? 0
+        let name: String = ingredient?.name ?? id
+        let unit: String = ingredient?.unit ?? ""
+        return "\(name) \(CookingText.quantity(amount)) \(unit)"
+    }
     var body: some View {
         NavigationStack {
             Form {
@@ -111,10 +119,8 @@ struct InventoryView: View {
                 }
                 Section("冰箱裡有什麼？") {
                     ForEach(session.inventory.compactMap { item -> String? in item["ingredientId"] as? String }, id: \.self) { id in
-                        let row = session.inventory.first { $0["ingredientId"] as? String == id }
-                        let ingredient = session.catalog?.ingredients.first { $0.id == id }
                         HStack {
-                            Text((ingredient?.name ?? id) + " " + CookingText.quantity(row?["quantity"] as? Double ?? 0) + " " + (ingredient?.unit ?? ""))
+                            Text(inventoryLabel(id))
                             Spacer()
                             Button("移除") { Task { await session.command("inventoryRemove", payload: ["ingredientId": id]) } }.disabled(!session.canEdit)
                         }

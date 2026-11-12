@@ -1,6 +1,7 @@
 import {CATALOG_VERSION} from './catalog-version.js';
 import {validateAccountSnapshot,validateProfile} from './model.js';
 export const SDK_VERSION='13.3.0';
+const configuredApps=new WeakSet();
 const fail=(code,message)=>Object.assign(new Error(message),{code});
 export function accountError(error){
  const code=String(error?.code||'').replace(/^functions\//,'');
@@ -37,13 +38,17 @@ export async function createAccountSync({config,applyMutation,validateSnapshot=v
  const sdk=injectedSdk||await sdkModules();
  const appName='meal-public-'+config.environment;
  const app=sdk.getApps().find(x=>x.name===appName)||sdk.initializeApp(config.firebase,appName);
+ if(app.options?.projectId&&app.options.projectId!==config.firebase.projectId)throw fail('sync/unconfigured','Firebase環境已變更，請重新載入頁面。');
  const auth=sdk.getAuth(app),db=sdk.getFirestore(app),functions=sdk.getFunctions(app,config.region||'us-central1');
+ if(!configuredApps.has(app)){
  if(config.emulator){
   const host=globalThis.location?.hostname||'127.0.0.1',port=Number(globalThis.location?.port||4173);
   sdk.connectAuthEmulator(auth,'http://'+host+':'+port,{disableWarnings:true});
   sdk.connectFirestoreEmulator(db,host,port);
   sdk.connectFunctionsEmulator(functions,host,port);
  }else sdk.initializeAppCheck(app,{provider:new sdk.ReCaptchaEnterpriseProvider(config.appCheckSiteKey),isTokenAutoRefreshEnabled:true});
+ configuredApps.add(app);
+ }
  let removeQA=()=>{};if(config.emulator){const {installEmulatorAccounts}=await import('./qa.js');removeQA=installEmulatorAccounts({sdk,auth,config})||removeQA;}
  const rpc=sdk.httpsCallable(functions,'mealAccount',{timeout:120000});
  let generation=0,destroyed=false,user=null,profile=null,profileRevision=0,latest=null,unsubData=()=>{},unsubProfile=()=>{};
