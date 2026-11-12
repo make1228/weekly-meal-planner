@@ -108,7 +108,11 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
    step='data';
    // Remove private UID data. Never alter the original legacy project source.
    // Remove the copied shared snapshot only after its last participant leaves.
-   await db.recursiveDelete(db.collection(accountPath(uid)+'/data'));
+   // Schema v2 has exactly one private data document. Delete that known path
+   // idempotently; a recursive BulkWriter/query is unnecessary and can cancel
+   // while other clients are listening. Add future private paths explicitly
+   // alongside their schema migration and lifecycle tests.
+   await db.doc(privatePath(uid)).delete();
    step='binding';
    await db.doc(bindingPath(uid)).delete();
    if(typeof legacySource==='string'&&!legacySource.includes('/')){

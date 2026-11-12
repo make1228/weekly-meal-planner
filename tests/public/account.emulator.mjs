@@ -196,7 +196,12 @@ test('interrupted account deletion records retry progress and rerun completes wi
 });
 
 test('deletion barrier rejects already-authenticated late work instead of recreating private data',async()=>{
- const a=await user('late-after-delete');await a.call('bootstrap');
+ const a=await user('late-after-delete');let full=await a.call('bootstrap');
+ full=await a.call('command',operation(full,'generate',{week:full.snapshot.state.plan.startDate}));
+ full=await a.call('command',operation(full,'generate',{week:full.snapshot.state.plan.nextWeek.plan.startDate}));
+ full=await a.call('command',operation(full,'inventoryAdd',{ingredientId:'egg',quantity:5}));
+ await a.call('profile',{revision:1,profile:{displayName:'Disposable private profile',equipment:[{id:'ih',model:'Disposable IH'}]}});
+ assert.equal(meals(full).length,14);assert.equal(full.snapshot.state.plan.nextWeek.plan.days.flatMap(d=>d.meals).length,14);
  const saved=await adminAuth(getAdminApp('account-admin-tests')).getUser(a.uid);
  await a.call('deleteAccount',{confirmation:'DELETE_MY_ACCOUNT'});
  // A handler may have checked Auth just before another request deleted it.
@@ -206,6 +211,8 @@ test('deletion barrier rejects already-authenticated late work instead of recrea
  assert.equal((await admin.doc('mealPlannerUsers/'+a.uid).get()).exists,false);
  assert.equal((await admin.doc('mealPlannerUsers/'+a.uid+'/data/current').get()).exists,false);
  assert.equal((await admin.doc('mealPlannerRateLimits/'+a.uid).get()).exists,false);
+ const receipt=(await admin.doc('mealPlannerDeletionJobs/'+a.uid).get()).data();
+ assert.deepEqual(Object.keys(receipt).sort(),['completedAt','expiresAt','status','step']);
 });
 
 test('equal email across Google and Apple does not implicitly merge product accounts',async()=>{

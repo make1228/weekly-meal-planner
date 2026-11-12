@@ -15,6 +15,8 @@ snapshot = `{version:1,state:{version:1,settings,inventory,plan,checked},prefere
 
 刪除完成後，deletionJobs只保留status/step/完成與到期時間的最小安全收據（文件ID為UID），移除sourceId、錯誤與全部產品內容。rateLimit及bootstrap的交易會拒絕仍持有舊Auth結果的晚到請求，避免刪帳後重新建立資料。expiresAt為24小時；正式上線前需核准此安全紀錄用途並設定TTL或受控清理，未設定時不會自動刪除，不能宣稱已按期清除。
 
+schema v2個人內容僅在data/current；刪帳按已知路徑逐一清除，不使用遞迴串流BulkWriter。後續若新增私人文件／子集合，必須同步擴充刪除清單、遷移與生命週期驗證，不可僅改寫入端。
+
 preferences 11 欄：weekdayPeople、weekdayChildren、weekendPeople、weekendChildren、appetite、slots、maxMinutes、favorites、avoidText、riceMeals、pastaMeals。數字輸入草稿為字串；驗證有效才送出。profile = `{displayName,equipment:[{id,model}]}`，設備為五種通用 ID，型號選填。新使用者兩成人、零小孩、午晚餐、60分鐘，無忌口／偏好／設備／庫存；既有私人設定不變。
 
 文件大小限制 700,000 bytes，無任意 prototype 欄位，庫存不重複，食材/recipeId/時間/份量/週次均驗證。純文件 get，不需複合索引；`firestore.public.indexes.json` 是空的複合索引清單。
