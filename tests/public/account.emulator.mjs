@@ -49,6 +49,8 @@ test('real callable requests reject anonymous clients; rules reject cross-user r
  await assertSucceeds(getDoc(doc(a.db,ra.dataPath)));
  await assertFails(getDoc(doc(b.db,ra.dataPath)));
  await assertFails(getDoc(doc(b.db,'mealPlannerUsers/'+a.uid)));
+ await assertFails(getDoc(doc(a.db,'mealHomes/weekly-table/data/current')));
+ await assertFails(getDoc(doc(a.db,'mealHomeAccess/weekly-table')));
  await assertFails(getDocs(collection(a.db,'mealPlannerUsers')));
  await assertFails(setDoc(doc(a.db,ra.dataPath),{ownerUid:b.uid}));
  await assertFails(setDoc(doc(a.db,'mealPlannerLegacyBindings/'+a.uid),{verified:true,sourceId:'weekly-table'}));
@@ -212,4 +214,13 @@ test('administrative Auth copy preserves verified Google UIDs, can rerun and nev
  const applied=await copyLegacyAuth({source,target,plan,identities,apply:true});assert.equal(applied.targetImports,2);
  assert.equal((await target.getUser(a.uid)).uid,a.uid);assert.equal((await source.getUser(a.uid)).uid,a.uid);
  assert.equal((await copyLegacyAuth({source,target,plan,identities,apply:true})).status,'already-imported');
+});
+
+test('independent feedback fields merge without overwriting another device response',async()=>{
+ const a=await user('feedback-fields'),base=await a.call('bootstrap'),recipeId='chicken-salad';
+ await Promise.all([
+  a.call('command',operation(base,'feedback',{recipeId,field:'liked',value:true})),
+  a.call('command',operation(base,'feedback',{recipeId,field:'slow',value:true}))
+ ]);
+ const result=await a.call('bootstrap');assert.equal(result.snapshot.state.settings.feedback[recipeId].liked,true);assert.equal(result.snapshot.state.settings.feedback[recipeId].slow,true);
 });

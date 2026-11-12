@@ -11,11 +11,17 @@ struct PreferencesView: View {
     private func changed() {
         guard loaded else { return }
         var value: [String: Any] = draft
-        value["favorites"] = Array(favorites); value["slots"] = Array(slots)
+        value["favorites"] = Array(favorites).sorted(); value["slots"] = ["lunch", "dinner"].filter { slots.contains($0) }
         session.schedulePreferences(value)
     }
     private func selection(_ key: String, set: Binding<Set<String>>) -> Binding<Bool> {
         Binding(get: { set.wrappedValue.contains(key) }, set: { enabled in if enabled { set.wrappedValue.insert(key) } else { set.wrappedValue.remove(key) }; changed() })
+    }
+    private func loadDraft() {
+        loaded = false
+        let prefs = session.preferences
+        for key in ["weekdayPeople","weekdayChildren","weekendPeople","weekendChildren","appetite","maxMinutes","avoidText","riceMeals","pastaMeals"] { draft[key] = prefs[key] as? String ?? "" }
+        favorites = Set(prefs["favorites"] as? [String] ?? []); slots = Set(prefs["slots"] as? [String] ?? []); loaded = true
     }
     var body: some View {
         NavigationStack {
@@ -33,11 +39,8 @@ struct PreferencesView: View {
                 Section("不吃的食材或料理") { TextField("以頓號或逗號分隔", text: text("avoidText"), axis: .vertical) }
                 Section("每週主食安排") { TextField("白飯餐數", text: text("riceMeals")).keyboardType(.numberPad); TextField("義大利麵餐數", text: text("pastaMeals")).keyboardType(.numberPad) }
             }.navigationTitle("餐桌設定")
-                .onAppear {
-                    let prefs = session.preferences
-                    for key in ["weekdayPeople","weekdayChildren","weekendPeople","weekendChildren","appetite","maxMinutes","avoidText","riceMeals","pastaMeals"] { draft[key] = prefs[key] as? String ?? "" }
-                    favorites = Set(prefs["favorites"] as? [String] ?? []); slots = Set(prefs["slots"] as? [String] ?? []); loaded = true
-                }
+                .onAppear { loadDraft() }
+                .onChange(of: session.revision) { _, _ in loadDraft() }
         }
     }
 }
@@ -80,8 +83,9 @@ struct AccountView: View {
                         Toggle(name, isOn: selected(id))
                         if selected(id).wrappedValue { TextField("型號（選填）", text: model(id)) }
                     }
-                    Button("儲存帳號設定") { Task { await session.saveProfile(draft, expectedRevision: profileRevision); profileRevision = session.profileRevision } }.disabled(!session.canEdit)
+                    Button("儲存帳號設定") { Task { if await session.saveProfile(draft, expectedRevision: profileRevision) { profileRevision = session.profileRevision } } }.disabled(!session.canEdit)
                 }
+                Button("放棄此處輸入並載入最新帳號設定") { draft = session.profile; profileRevision = session.profileRevision }
                 Section("連結登入方式") {
                     Toggle("同意將登入方式連結至目前帳號，共用同一份資料", isOn: $linkConsent)
                     Button("連結 Google") { Task { await session.link(provider: "google.com", consent: linkConsent) } }.disabled(!linkConsent)

@@ -45,7 +45,9 @@ for name in ['FirebaseCore','FirebaseAuth','FirebaseFirestore','FirebaseFunction
  product=add('product:'+name,'XCSwiftPackageProductDependency',package=packages[1 if name=='GoogleSignIn' else 0],productName=name)
  products.append(product);frameworkFiles.append(add('framework-build:'+name,'PBXBuildFile',productRef=product))
 frameworks=add('frameworks','PBXFrameworksBuildPhase',buildActionMask=2147483647,files=frameworkFiles,runOnlyForDeploymentPostprocessing=0)
-testFrameworkFiles=[add('test-framework-build:'+str(i),'PBXBuildFile',productRef=product) for i,product in enumerate(products)]
+# Test bundle resolves SDK symbols through its app host; linking the same static
+# Firestore product twice makes Xcode synthesize unsupported dynamic wrappers.
+testFrameworkFiles=[]
 testFrameworks=add('test-frameworks','PBXFrameworksBuildPhase',buildActionMask=2147483647,files=testFrameworkFiles,runOnlyForDeploymentPostprocessing=0)
 appProduct=add('app-product','PBXFileReference',explicitFileType='wrapper.application',includeInIndex=0,path='WeeklyMealPlanner.app',sourceTree='BUILT_PRODUCTS_DIR')
 testProduct=add('test-product','PBXFileReference',explicitFileType='wrapper.cfbundle',includeInIndex=0,path='WeeklyMealPlannerTests.xctest',sourceTree='BUILT_PRODUCTS_DIR')
@@ -60,13 +62,13 @@ for target in ['project','app','test']:
   settings.update({'SWIFT_OPTIMIZATION_LEVEL':'-Onone' if mode=='Debug' else '-O','DEBUG_INFORMATION_FORMAT':'dwarf' if mode=='Debug' else 'dwarf-with-dsym','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'DEBUG' if mode=='Debug' else '', 'ONLY_ACTIVE_ARCH':'YES' if mode=='Debug' else 'NO', 'ENABLE_TESTABILITY':'YES' if mode=='Debug' else 'NO'})
   if target=='app':settings.update({'PRODUCT_NAME':'WeeklyMealPlanner','INFOPLIST_FILE':'WeeklyMealPlanner/Info.plist','CODE_SIGN_ENTITLEMENTS':'WeeklyMealPlanner/WeeklyMealPlanner.entitlements','CODE_SIGN_STYLE':'Automatic','TARGETED_DEVICE_FAMILY':'1,2','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','GENERATE_INFOPLIST_FILE':'NO','LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks']})
   if target=='test':settings.update({'PRODUCT_NAME':'$(TARGET_NAME)','PRODUCT_BUNDLE_IDENTIFIER':'com.example.weeklymealplanner.tests','GENERATE_INFOPLIST_FILE':'YES','TEST_HOST':'$(BUILT_PRODUCTS_DIR)/WeeklyMealPlanner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/WeeklyMealPlanner','BUNDLE_LOADER':'$(TEST_HOST)','CODE_SIGN_STYLE':'Automatic','TARGETED_DEVICE_FAMILY':'1,2'})
-  if target=='test':settings['TEST_HOST']='$(BUILT_PRODUCTS_DIR)/WeeklyMealPlanner.app/WeeklyMealPlanner'
+  if target=='test':settings.update({'TEST_HOST':'$(BUILT_PRODUCTS_DIR)/WeeklyMealPlanner.app/WeeklyMealPlanner','FRAMEWORK_SEARCH_PATHS':['$(inherited)','$(BUILT_PRODUCTS_DIR)','$(BUILT_PRODUCTS_DIR)/PackageFrameworks'],'SWIFT_INCLUDE_PATHS':['$(inherited)','$(BUILT_PRODUCTS_DIR)']})
   ids.append(add('config:'+target+mode,'XCBuildConfiguration',buildSettings=settings,name=mode,**({'baseConfigurationReference':file(root/'App.xcconfig')} if target=='app' else {})))
  configs[target]=add('configlist:'+target,'XCConfigurationList',buildConfigurations=ids,defaultConfigurationIsVisible=0,defaultConfigurationName='Release')
 proxy=add('test-proxy','PBXContainerItemProxy',containerPortal=ref('project'),proxyType=1,remoteGlobalIDString=ref('app-target'),remoteInfo='WeeklyMealPlanner')
 dependency=add('test-dependency','PBXTargetDependency',target=ref('app-target'),targetProxy=proxy)
 add('app-target','PBXNativeTarget',buildConfigurationList=configs['app'],buildPhases=[appSources,frameworks,appResources],buildRules=[],dependencies=[],name='WeeklyMealPlanner',packageProductDependencies=products,productName='WeeklyMealPlanner',productReference=appProduct,productType='com.apple.product-type.application')
-add('test-target','PBXNativeTarget',buildConfigurationList=configs['test'],buildPhases=[testSources,testFrameworks,testResourcesPhase],buildRules=[],dependencies=[dependency],packageProductDependencies=products,name='WeeklyMealPlannerTests',productName='WeeklyMealPlannerTests',productReference=testProduct,productType='com.apple.product-type.bundle.unit-test')
+add('test-target','PBXNativeTarget',buildConfigurationList=configs['test'],buildPhases=[testSources,testFrameworks,testResourcesPhase],buildRules=[],dependencies=[dependency],name='WeeklyMealPlannerTests',productName='WeeklyMealPlannerTests',productReference=testProduct,productType='com.apple.product-type.bundle.unit-test')
 group=add('main-group','PBXGroup',children=children+[productsGroup],sourceTree='<group>')
 add('project','PBXProject',attributes={'BuildIndependentTargetsInParallel':'YES','LastSwiftUpdateCheck':'2600','LastUpgradeCheck':'2600','TargetAttributes':{ref('app-target'):{'CreatedOnToolsVersion':'26.0'},ref('test-target'):{'CreatedOnToolsVersion':'26.0','TestTargetID':ref('app-target')}}},buildConfigurationList=configs['project'],compatibilityVersion='Xcode 15.0',developmentRegion='zh-Hant',hasScannedForEncodings=0,knownRegions=['zh-Hant','en','Base'],mainGroup=group,packageReferences=packages,productRefGroup=productsGroup,projectDirPath='',projectRoot='',targets=[ref('app-target'),ref('test-target')])
 project={'archiveVersion':1,'classes':{},'objectVersion':60,'objects':objects,'rootObject':ref('project')}

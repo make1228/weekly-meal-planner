@@ -44,7 +44,17 @@ export function commandMutation(request,today=taipeiDate()){
    }
    break;
   }
-  case 'feedback':if(!recipeById(payload.recipeId))throw new Error('料理不存在。');view.settings.feedback[payload.recipeId]=payload.feedback;break;
+  case 'feedback':{
+   if(!recipeById(payload.recipeId))throw new Error('料理不存在。');
+   if(payload.field!==undefined){
+    if(payload.remove!==true&&!Object.hasOwn(payload,'value'))throw new Error('請提供回饋內容。');
+    if(!['liked','slow','portion'].includes(payload.field))throw new Error('回饋欄位不正確。');
+    view.settings.feedback[payload.recipeId]??={};
+    if(payload.remove===true)delete view.settings.feedback[payload.recipeId][payload.field];
+    else view.settings.feedback[payload.recipeId][payload.field]=payload.value;
+   }else view.settings.feedback[payload.recipeId]=payload.feedback;
+   break;
+  }
   default:throw new Error('不支援的菜單操作。');
  }
  next.state=saveWeekView(next.state,view);

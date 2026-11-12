@@ -2,6 +2,7 @@ import {initializeApp,getApps,getApp} from 'firebase-admin/app';
 import {getFirestore,FieldValue} from 'firebase-admin/firestore';
 import {getAuth} from 'firebase-admin/auth';
 import {onCall,HttpsError} from 'firebase-functions/v2/https';
+import {serviceError} from './errors.js';
 import {createAccountService} from './service.js';
 if(!getApps().length)initializeApp();
 let policyConfirmedAt=0;
@@ -27,7 +28,7 @@ export const mealAccount=onCall({region:'us-central1',enforceAppCheck:process.en
   return await handle(request.data,{uid:request.auth?.uid,provider:token?.firebase?.sign_in_provider,authTime:token?.auth_time});
  }catch(e){
   if(e instanceof HttpsError)throw e;
-  const codes=['unauthenticated','permission-denied','invalid-argument','failed-precondition','aborted','resource-exhausted','unavailable'];
-  throw new HttpsError(codes.includes(e.code)?e.code:'invalid-argument',e.message||'請求無法完成。',e.details||{});
+  const failure=serviceError(e);
+  throw new HttpsError(failure.code,failure.message,failure.details);
  }
 });

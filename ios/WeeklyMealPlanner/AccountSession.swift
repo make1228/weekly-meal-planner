@@ -25,6 +25,7 @@ final class AccountSession: ObservableObject {
     @Published var configurationError: String?
     private(set) var configuration: AppConfiguration?
     private var generation = 0
+    private var lastBootstrapDay = ""
     private var dataListener: ListenerRegistration?
     private var profileListener: ListenerRegistration?
     private var authListener: AuthStateDidChangeListenerHandle?
@@ -82,7 +83,7 @@ final class AccountSession: ObservableObject {
         dataListener?.remove(); profileListener?.remove(); preferenceTimer?.cancel()
         snapshot = nil; catalogVersion = ""; profile = UserProfile(); profileRevision = 0; revision = 0
         shopping = [:]; pendingNeedsReview = false; preferencesBlocked = false; stagedPreferences = nil; preferenceOrigin = nil; message = ""; busy = false
-        uid = user?.uid; serverReady = false
+        uid = user?.uid; serverReady = false; lastBootstrapDay = ""
         hasPending = pendingKey.flatMap { PendingStore.read(key: $0) } != nil
         guard user != nil else { phase = "尚未登入"; return }
         phase = "正在同步"
@@ -144,8 +145,15 @@ final class AccountSession: ObservableObject {
         value["shopping"] = try? JSONSerialization.jsonObject(with: JSONEncoder().encode(shopping))
         try? PendingStore.write(value, key: "confirmed:" + key)
     }
+    private func todayTaipei() -> String {
+        let format = DateFormatter()
+        format.calendar = Calendar(identifier: .gregorian); format.locale = Locale(identifier: "en_US_POSIX")
+        format.timeZone = TimeZone(identifier: "Asia/Taipei"); format.dateFormat = "yyyy-MM-dd"
+        return format.string(from: Date())
+    }
     func bootstrap() async throws {
         let result = try await rpc("bootstrap")
+        lastBootstrapDay = todayTaipei()
         apply(result)
         if let raw = result["profile"] { profile = try decode(UserProfile.self, from: raw) }
         profileRevision = result["profileRevision"] as? Int ?? 1
@@ -183,6 +191,12 @@ final class AccountSession: ObservableObject {
     func days(week: String) -> [MenuDay] {
         guard let value = (menu(week: week)?["plan"] as? [String: Any])?["days"] else { return [] }
         return (try? decode([MenuDay].self, from: value)) ?? []
+    }
+    func previewMeal(recipeID: String) -> Meal {
+        let settings = (snapshot?["state"] as? [String: Any])?["settings"] as? [String: Any] ?? [:]
+        let adults = settings["weekdayPeople"] as? Double ?? 2
+        let children = settings["weekdayChildren"] as? Double ?? 0
+        return Meal(key: recipeID, date: "", slot: "", recipeId: recipeID, servings: adults + children * 0.7, portionFactor: settings["appetite"] as? String == "small" ? 0.7 : 1, adults: adults, children: children, cooked: false)
     }
     func checked(_ ingredientID: String, week: String) -> Bool { (menu(week: week)?["checked"] as? [String: Any])?[ingredientID] as? Bool == true }
 
@@ -292,7 +306,7 @@ final class AccountSession: ObservableObject {
     }
     private func automaticSync() async {
         guard uid != nil, online, !busy else { return }
-        if !serverReady { do { try await bootstrap() } catch { show(error); return } }
+        if !serverReady || lastBootstrapDay != todayTaipei() { do { try await bootstrap() } catch { show(error); return } }
         if hasPending { await retryPending() }
         else if stagedPreferences != nil && !preferencesBlocked { await syncPreferences() }
     }
@@ -312,17 +326,21 @@ final class AccountSession: ObservableObject {
     }
     #endif
     func signOut() {
+        generation += 1; dataListener?.remove(); profileListener?.remove(); preferenceTimer?.cancel()
+        uid = nil; snapshot = nil; profile = UserProfile(); shopping = [:]; serverReady = false
+        revision = 0; profileRevision = 0; catalogVersion = ""; hasPending = false; pendingNeedsReview = false
+        stagedPreferences = nil; preferenceOrigin = nil; preferencesBlocked = false; busy = false; phase = "尚未登入"
         do { try Auth.auth().signOut(); GIDSignIn.sharedInstance.signOut() } catch { show(error) }
     }
-    func saveProfile(_ value: UserProfile, expectedRevision: Int) async {
+    func saveProfile(_ value: UserProfile, expectedRevision: Int) async -> Bool {
         do {
             let data = try JSONSerialization.jsonObject(with: JSONEncoder().encode(value))
             let result = try await rpc("profile", ["profile": data, "revision": expectedRevision])
             if let p = result["profile"] { profile = try decode(UserProfile.self, from: p) }
             persistConfirmed()
             profileRevision = result["profileRevision"] as? Int ?? profileRevision
-            message = "帳號設定已同步"
-        } catch { show(error) }
+            message = "帳號設定已同步"; return true
+        } catch { show(error); return false }
     }
     private func reauthenticate(preferApple: Bool = false) async throws -> String? {
         guard let user = Auth.auth().currentUser else { throw URLError(.userAuthenticationRequired) }

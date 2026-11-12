@@ -58,7 +58,7 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
   labels.unconfirmed=unconfirmed?.reviewOnly?'上次儲存已超過可自動確認的範圍。請先核對最新菜單與庫存，再繼續操作。':'上次儲存結果尚未確認。請先確認，避免重複加入庫存或重複操作。';
   const pending=current==='synced'&&pendingPreferences();
   const detail=pending?(draftBlocked?'設定有衝突，已保留此裝置的輸入。請確認最新共用內容後，再修改或產生菜單。':'菜單已同步；有效設定會自動補送，每分鐘再次檢查。'):labels[current]||labels.error;
-  const compact={connecting:'連線中',unconfigured:'使用此裝置儲存','signed-out':'尚未登入',forbidden:'帳號尚未加入','needs-home':'準備共用空間','needs-initialization':'待建立共用菜單',saving:'同步中',synced:'已同步',offline:'目前離線',error:'同步未完成',unconfirmed:unconfirmed?.reviewOnly?'儲存待核對':'儲存結果尚未確認'};
+  const compact={connecting:'連線中',unconfigured:'使用此裝置儲存','signed-out':'尚未登入',forbidden:accountMode?'需重新登入':'帳號尚未加入','needs-home':'準備共用空間','needs-initialization':'待建立共用菜單',saving:'同步中',synced:'已同步',offline:'目前離線',error:'同步未完成',unconfirmed:unconfirmed?.reviewOnly?'儲存待核對':'儲存結果尚未確認'};
   $('#cloud-status').textContent=pending?(draftBlocked?'設定衝突，待確認':'設定待同步'):compact[current]||compact.error;
   $('#cloud-status').title=detail;$('#cloud-status').ariaLabel=detail;
   $('.cloud-panel').dataset.phase=current;

@@ -17,7 +17,7 @@ export function accountError(error){
   'resource-exhausted':'操作太頻繁，請稍後重試。',
   'unavailable':'目前無法連線，尚未確認儲存，請恢復網路後重試。'
  };
- return Object.assign(new Error(texts[error?.code]||texts[code]||error?.message||'帳號操作未完成。'),{code:error?.code||code,details:error?.details});
+ return Object.assign(new Error(texts[error?.code]||texts[code]||error?.message||'帳號操作未完成。'),{code,details:error?.details});
 }
 async function sdkModules(){
  const root='https://www.gstatic.com/firebasejs/'+SDK_VERSION;

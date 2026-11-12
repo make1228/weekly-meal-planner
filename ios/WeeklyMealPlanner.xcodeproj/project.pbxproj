@@ -286,41 +286,10 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FA850513C6B185E3BAE009D8 = {
-			isa = "PBXBuildFile";
-			productRef = "86C5C56E997F0ABC047AF08A";
-		};
-		A495092D04DB4F3360022763 = {
-			isa = "PBXBuildFile";
-			productRef = "0B40C9D05B73294529DC098B";
-		};
-		D4119F926E3EF4010EE95F32 = {
-			isa = "PBXBuildFile";
-			productRef = "0E7EC771BF74F15EEB1F5088";
-		};
-		87CC6F3FADBB93B33EF2840E = {
-			isa = "PBXBuildFile";
-			productRef = "4D5AB09F939E760A7FD3308D";
-		};
-		882D61A90FE7B238C6037AEE = {
-			isa = "PBXBuildFile";
-			productRef = "C60E727EAA7787D776F2BAD2";
-		};
-		35CA3D9AE417E48029060386 = {
-			isa = "PBXBuildFile";
-			productRef = "F8D9553B38CC08D59707A0BC";
-		};
 		B10CDED79664567B030B2B4F = {
 			isa = "PBXFrameworksBuildPhase";
 			buildActionMask = 2147483647;
-			files = (
-				"FA850513C6B185E3BAE009D8",
-				"A495092D04DB4F3360022763",
-				"D4119F926E3EF4010EE95F32",
-				"87CC6F3FADBB93B33EF2840E",
-				"882D61A90FE7B238C6037AEE",
-				"35CA3D9AE417E48029060386",
-			);
+			files = ();
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		681C948D238C526E9E3424E0 = {
@@ -496,6 +465,15 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = "Automatic";
 				TARGETED_DEVICE_FAMILY = "1,2";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
+					"$(BUILT_PRODUCTS_DIR)/PackageFrameworks",
+				);
+				SWIFT_INCLUDE_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
+				);
 			};
 			name = "Debug";
 		};
@@ -519,6 +497,15 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = "Automatic";
 				TARGETED_DEVICE_FAMILY = "1,2";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
+					"$(BUILT_PRODUCTS_DIR)/PackageFrameworks",
+				);
+				SWIFT_INCLUDE_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
+				);
 			};
 			name = "Release";
 		};
@@ -577,14 +564,6 @@
 			buildRules = ();
 			dependencies = (
 				"F9A94CEF8CF7D85CE881E703",
-			);
-			packageProductDependencies = (
-				"86C5C56E997F0ABC047AF08A",
-				"0B40C9D05B73294529DC098B",
-				"0E7EC771BF74F15EEB1F5088",
-				"4D5AB09F939E760A7FD3308D",
-				"C60E727EAA7787D776F2BAD2",
-				"F8D9553B38CC08D59707A0BC",
 			);
 			name = "WeeklyMealPlannerTests";
 			productName = "WeeklyMealPlannerTests";

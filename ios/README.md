@@ -6,7 +6,7 @@
 
 ## Mac mini：先用虛構帳號驗證
 
-1. 安裝目前 Xcode、iOS Simulator、Node22+、Java21。在 Xcode第一次開啟時完成平台下載與必要授權。
+1. 安裝Xcode 26.2或以上（Firebase13要求Swift6.2.3；CI使用Xcode26.6）、iOS Simulator、Node22+、Java21。在 Xcode第一次開啟時完成平台下載與必要授權。
 2. clone 此分支，依序執行：
 
 ```sh

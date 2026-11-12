@@ -57,6 +57,11 @@ final class AccountIntegrationTests: XCTestCase {
         let week = try XCTUnwrap(first.weeks.first)
         XCTAssertTrue(first.inventory.isEmpty)
         XCTAssertTrue(first.profile.equipment.isEmpty)
+        _ = try await call("profile", ["profile": ["displayName": "REMOTE", "equipment": []], "revision": 1], token: tokenA)
+        try await eventually("Native profile listener missed remote profile") { first.profileRevision == 2 }
+        let staleSaved = await first.saveProfile(UserProfile(displayName: "STALE", equipment: []), expectedRevision: 1)
+        XCTAssertFalse(staleSaved)
+        XCTAssertEqual(first.profile.displayName, "REMOTE")
         let generated = try await call("command", remoteOperation("generate", ["week": week], record: initial), token: tokenA)
         let generatedRevision = try XCTUnwrap(generated["revision"] as? Int)
         try await eventually("Native Firestore listener missed HTTP change") { first.revision >= generatedRevision && first.days(week: week).flatMap(\.meals).count == 14 }

@@ -65,6 +65,8 @@ struct ShoppingView: View {
             List {
                 StatusBar()
                 Picker("週次", selection: $week) { ForEach(session.weeks, id: \.self) { Text($0).tag($0) } }
+                if session.shopping[week] == nil { Text("採買需求載入中").foregroundStyle(.secondary) }
+                else if (session.shopping[week] ?? []).allSatisfy({ $0.toBuy <= 0 }) { Text("目前沒有待採買項目").foregroundStyle(.secondary) }
                 ForEach((session.shopping[week] ?? []).filter { $0.toBuy > 0 }) { row in
                     VStack(alignment: .leading) {
                         Toggle(isOn: Binding(get: { session.checked(row.id, week: week) }, set: { value in Task { await session.command("checked", payload: ["week": week, "ingredientId": row.id, "checked": value]) } })) {

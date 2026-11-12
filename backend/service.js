@@ -7,6 +7,7 @@ import {CATALOG_VERSION} from '../account/catalog-version.js';
 import {commandMutation} from '../account/commands.js';
 const clone=x=>structuredClone(x);
 const error=(code,message,details={})=>Object.assign(new Error(message),{code,details});
+function inputValidation(fn){try{return fn();}catch(e){if(e.code)throw e;throw error('invalid-argument',e.message||'輸入內容不正確。');}}
 const idPattern=/^[A-Za-z0-9_-]{8,100}$/;
 const accountPath=uid=>'mealPlannerUsers/'+uid;
 const bindingPath=uid=>'mealPlannerLegacyBindings/'+uid;
@@ -69,7 +70,7 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
   });
  }
  async function submit(uid,mutation,replaceRequest=null){
-  assertSafeJSON(mutation);allowedKeys(mutation,['version','id','baseRevision','settings','preferences','inventory','plan','checked','feedback','nextWeek','meals','context','planTimestamp','seedDelta']);
+  inputValidation(()=>assertSafeJSON(mutation));allowedKeys(mutation,['version','id','baseRevision','settings','preferences','inventory','plan','checked','feedback','nextWeek','meals','context','planTimestamp','seedDelta']);
   if(!idPattern.test(mutation.id||''))throw error('invalid-argument','操作識別碼不正確。');
   const today=taipeiDate(clock());
   return db.runTransaction(async t=>{
@@ -80,10 +81,10 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
    let snapshot;
    if(replaceRequest){
     if(record.revision!==mutation.baseRevision)throw error('aborted','雲端已更新，請重新預覽匯入內容。',{code:'sync/conflict',latestSnapshot:record.snapshot,latestRevision:record.revision});
-    snapshot=validateAccountSnapshot(replaceRequest);
+    snapshot=inputValidation(()=>validateAccountSnapshot(replaceRequest));
    }else{
     try{snapshot=validateAccountSnapshot(applyMutation(record.snapshot,mutation));}
-    catch(e){if(e.code==='sync/conflict')throw error('aborted','另一個裝置已修改相同內容。',{code:e.code,paths:e.paths,latestSnapshot:record.snapshot,latestRevision:record.revision});throw e;}
+    catch(e){if(e.code==='sync/conflict')throw error('aborted','另一個裝置已修改相同內容。',{code:e.code,paths:e.paths,latestSnapshot:record.snapshot,latestRevision:record.revision});throw error('invalid-argument',e.message||'菜單操作不正確。');}
    }
    verifyWindow(snapshot,today);
    const next={...record,snapshot,revision:record.revision+1,recentMutationIds:[...record.recentMutationIds,mutation.id].slice(-128),updatedAt:serverTimestamp(),updatedBy:uid};
@@ -128,7 +129,7 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
   const now=clock().getTime();requireIdentity(context,now);
   allowedKeys(input,['action','payload']);const {action,payload={}}=input;
   if(!allowedActions.has(action))throw error('invalid-argument','不支援的帳號操作。');
-  assertSafeJSON(payload,1500000);
+  inputValidation(()=>assertSafeJSON(payload,1500000));
   if(action==='deletionStatus'){
    const j=await db.doc('mealPlannerDeletionJobs/'+context.uid).get(),a=await db.doc(accountPath(context.uid)).get();
    return j.exists?{status:j.data().status,step:j.data().step}:{status:a.exists?'active':'completed'};
@@ -144,7 +145,7 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
   await rateLimit(context.uid);
   if(action==='bootstrap'){allowedKeys(payload,[]);return bootstrap(context.uid);}
   if(action==='profile'){
-   allowedKeys(payload,['profile','revision']);const profile=validateProfile(payload.profile);
+   allowedKeys(payload,['profile','revision']);const profile=inputValidation(()=>validateProfile(payload.profile));
    return db.runTransaction(async t=>{
     const {ref,account}=await resolve(t,context.uid);
     if(payload.revision!==account.profileRevision)throw error('aborted','帳號設定已在另一個裝置更新。',{reason:'profile-conflict'});
@@ -165,7 +166,7 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
   if(action==='submit'){allowedKeys(payload,['mutation']);return submit(context.uid,payload.mutation);}
   if(action==='command'){
    allowedKeys(payload,['id','type','payload','baseSnapshot','baseRevision']);
-   return submit(context.uid,commandMutation(payload,taipeiDate(clock())));
+   return submit(context.uid,inputValidation(()=>commandMutation(payload,taipeiDate(clock()))));
   }
   if(action==='replace'){
    allowedKeys(payload,['snapshot','baseRevision','id','confirmed']);recent(context,now);

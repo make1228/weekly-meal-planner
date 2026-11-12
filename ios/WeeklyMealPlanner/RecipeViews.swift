@@ -5,7 +5,7 @@ struct CatalogView: View {
     @State private var search = ""
     var body: some View {
         List((session.catalog?.recipes ?? []).filter { search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) }) { recipe in
-            NavigationLink { RecipeView(recipe: recipe, meal: Meal(key: recipe.id, date: "", slot: "", recipeId: recipe.id, servings: 2, portionFactor: 1, adults: 2, children: 0, cooked: false)) } label: {
+            NavigationLink { RecipeView(recipe: recipe, meal: session.previewMeal(recipeID: recipe.id)) } label: {
                 VStack(alignment: .leading) { Text(recipe.title); Text(recipe.cuisine + "・約" + String(recipe.minutes) + "分鐘").font(.caption).foregroundStyle(.secondary) }
             }
         }.searchable(text: $search, prompt: "搜尋料理").navigationTitle("食譜庫")
@@ -19,7 +19,11 @@ struct RecipeView: View {
     @State private var feedback: [String: Any] = [:]
     private func saveFeedback(_ key: String, _ value: Any) {
         feedback[key] = value
-        Task { await session.command("feedback", payload: ["recipeId": recipe.id, "feedback": feedback]) }
+        Task { await session.command("feedback", payload: ["recipeId": recipe.id, "field": key, "value": value]) }
+    }
+    private func loadFeedback() {
+        let all = ((session.snapshot?["state"] as? [String: Any])?["settings"] as? [String: Any])?["feedback"] as? [String: [String: Any]] ?? [:]
+        feedback = all[recipe.id] ?? [:]
     }
     private func text(_ raw: String) -> String {
         (try? CookingText.render(raw, recipe: recipe, meal: meal, ingredients: session.catalog?.ingredients ?? [])) ?? "用量資料需更新，請重新載入食譜庫。"
@@ -29,6 +33,7 @@ struct RecipeView: View {
             Section {
                 Text(recipe.title).font(.title2.bold())
                 Text(recipe.cuisine + "・約" + String(recipe.minutes) + "分鐘・" + recipe.equipment).font(.caption)
+                Text(CookingText.quantity(meal.adults ?? meal.servings) + "大人・" + CookingText.quantity(meal.children ?? 0) + "小孩" + ((meal.portionFactor ?? 1) == 0.7 ? "・小食量70%" : "・普通食量"))
                 Text("食材已依本餐人數及食量換算。").font(.caption).foregroundStyle(.secondary)
             }
             Section("準備食材") {
@@ -60,7 +65,8 @@ struct RecipeView: View {
                 Link("食物安全溫度參考", destination: URL(string: "https://www.foodsafety.gov/food-safety-charts/safe-minimum-internal-temperatures")!)
             }
         }.navigationTitle("完整食譜").navigationBarTitleDisplayMode(.inline)
-            .onAppear { let all = ((session.snapshot?["state"] as? [String: Any])?["settings"] as? [String: Any])?["feedback"] as? [String: [String: Any]] ?? [:]; feedback = all[recipe.id] ?? [:] }
+            .onAppear { loadFeedback() }
+            .onChange(of: session.revision) { _, _ in loadFeedback() }
     }
 }
 struct OfferRows: View {
