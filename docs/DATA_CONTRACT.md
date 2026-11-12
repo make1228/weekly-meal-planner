@@ -36,7 +36,7 @@ preferences 11 欄：weekdayPeople、weekdayChildren、weekendPeople、weekendCh
 
 命令 type：generate、swap、cooked、inventoryAdd、inventoryRemove、checked、preferences、feedback。week 僅限本週／下週。generate 只替換指定週；swap 只替換單餐且遵守原主食安排、時間與忌口。
 
-操作 id 限8–100位英數、`_`、`-`。同 id 收據重送回傳既有結果，不再扣／加庫存。baseRevision 比未來新或距最新 >=128 時拒絕，不盲目再次套用。不同欄位可合併；同欄位衝突回 aborted，details 含 sync/conflict、paths、最新快照與 revision。前端保留未送草稿，讀取最新後使用者重新操作。
+操作 id 限8–100位英數、`_`、`-`。同 id 收據重送回傳既有結果，不再扣／加庫存。整份備份還原另設定minAcceptedRevision屏障；已知收據仍可確認，屏障前未知操作停止重送。baseRevision 比未來新或距最新 >=128 時拒絕，不盲目再次套用。不同欄位可合併；同欄位衝突回 aborted，details 含 sync/conflict、paths、最新快照與 revision。前端保留未送草稿，讀取最新後使用者重新操作。
 
 份量 = `(大人 + 小孩×0.7) × (普通1／小食量0.7)`。Web 引擎與 server 共用 `engine.js`、`weeks.js`、`preferences.js`、`sync-model.js`；iOS 配餐、採買、狀態修改全部走 server 命令。iOS 食譜用量依 catalog 基準運算，XCTest 使用 Web 生成的相同測例；不縮減溫度、時間、厚度與熟度。
 

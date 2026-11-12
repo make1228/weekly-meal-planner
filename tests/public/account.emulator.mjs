@@ -224,3 +224,16 @@ test('independent feedback fields merge without overwriting another device respo
  ]);
  const result=await a.call('bootstrap');assert.equal(result.snapshot.state.settings.feedback[recipeId].liked,true);assert.equal(result.snapshot.state.settings.feedback[recipeId].slow,true);
 });
+
+test('confirmed whole-data import blocks older unacknowledged operations but still acknowledges known retries',async()=>{
+ const a=await user('import-barrier'),base=await a.call('bootstrap');
+ const unsent=operation(base,'inventoryAdd',{ingredientId:'egg',quantity:1});
+ const confirmed=operation(base,'inventoryAdd',{ingredientId:'milk',quantity:100});
+ const changed=await a.call('command',confirmed);
+ const restored=await a.call('replace',{snapshot:changed.snapshot,baseRevision:changed.revision,id:'confirmed-restore-'+serial++,confirmed:true});
+ await assert.rejects(a.call('command',unsent),e=>e.details?.code==='sync/expired-mutation');
+ const known=await a.call('command',confirmed);assert.equal(known.revision,restored.revision);
+ const fresh=await a.call('command',operation(restored,'inventoryAdd',{ingredientId:'egg',quantity:1}));
+ assert.equal(fresh.snapshot.state.inventory.find(x=>x.ingredientId==='milk').quantity,100);
+ assert.equal(fresh.snapshot.state.inventory.find(x=>x.ingredientId==='egg').quantity,1);
+});

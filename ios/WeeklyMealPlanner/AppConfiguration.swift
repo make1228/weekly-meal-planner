@@ -23,9 +23,9 @@ struct AppConfiguration {
             FirebaseApp.configure(options: options)
             Auth.auth().useEmulator(withHost: host, port: 9099)
             let db = Firestore.firestore()
+            db.useEmulator(withHost: host, port: 8080)
+            Firestore.enableLogging(true)
             let settings = db.settings
-            settings.host = host + ":8080"
-            settings.isSSLEnabled = false
             settings.cacheSettings = MemoryCacheSettings()
             db.settings = settings
             Functions.functions(region: "us-central1").useEmulator(withHost: host, port: 5001)

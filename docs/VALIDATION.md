@@ -5,7 +5,7 @@
 ## 已完成
 
 - 原版 Node 回歸 222項通過（含200道完整食譜、四種風格各50、份量、兩週、換菜、已煮與商店列）。改造後再次執行 `npm test`，222/222通過。
-- Auth/Firestore官方emulator + 實際callable HTTP backend通過，細項見 `tests/public/account.emulator.mjs`。執行 `npm run test:public`，30/30通過；含舊Rules與新增API、保留UID的Auth匯入、遷移、撤權、同Email隔離及不同回饋欄位併發合併案例。
+- Auth/Firestore官方emulator + 實際callable HTTP backend通過，細項見 `tests/public/account.emulator.mjs`。執行 `npm run test:public`，31/31通過；含舊Rules與新增API、保留UID的Auth匯入、遷移、撤權、同Email隔離、不同回饋欄位併發合併及備份還原後阻擋舊未知操作案例。
 - Chrome桌面實際UI：新UID空白設定、A產生14餐、切下週仍空白、切回本週14道完全不變、單餐替換、已煮扣採買、設備設定保存、換B無A菜單與設備、切回A及reload恢復14餐和已煮狀態。
 - 實際帳號匯出下載為schemaVersion2／14餐／正確測試profile；匿名本機資料先預覽，確認勾選前不能匯入，沒有自動覆蓋雲端。
 - 完整食譜有備料、步驟、熟度、提醒、AI／未逐道試煮標示；好市多／全聯各一列，品牌型號只屬使用者設定，不出現在新帳號預設設備。
@@ -15,7 +15,7 @@
 ## 尚未完成／不能混稱通過
 
 - 未取得Firebase管理連線，沒有真實Auth盤點／私人備份，也沒有雲端staging部署網址。模擬器遷移不等於正式遷移。
-- 此Linux環境無Xcode／Swift。已提供原生專案、Mac步驟及macOS CI；iOS實際build／XCTest以CI結果或Mac結果為準。
+- 此Linux環境無Xcode／Swift，已透過GitHub macOS CI實際編譯成功，200道食譜完整性及9組份量的2項XCTest通過。原生帳號整合測試仍在修正Firestore監聽初始化／離線狀態，未稱通過。
 - 真實Google／AppleOAuth、Apple隱藏Email群組設定、Apple授權撤銷、AppCheck enforced、Web↔真實iOS雙向與關閉重開、Safari、375px、平板、iPhone/iPad實機、TestFlight尚未驗證。
 - 沒有公開新正式服務、修改現行正式網域、啟用收費或合併main。
 

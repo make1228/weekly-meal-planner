@@ -63,7 +63,7 @@ node scripts/migrate-legacy.mjs --source-project nora-after-hours --backup /priv
 
 ## 回復與失敗處理
 
-正式切換前停止**菜單產品**的寫入並做最後備份，不停止其他看板；避免舊／新專案雙寫分岔。雙人共同驗收後才能切正式網站。切換期間新站與舊站只允許一邊可寫，正式網址未經確認不切換。
+正式切換前停止**菜單產品**的寫入並做最後備份，不停止其他看板；避免舊／新專案雙寫分岔。雙人共同驗收後才能切正式網站。正式切換還必須從實際雲端Rules／服務盤點，退役舊菜單資料路徑的客戶端存取；只做網站重新導向不足以撤銷舊資料權限。這一步只限本產品並需另行確認，不能用本repo的Rules覆蓋共用專案中其他看板規則。切換期間新站與舊站只允許一邊可寫，正式網址未經確認不切換。
 
 ```sh
 node scripts/migrate-legacy.mjs --source-project nora-after-hours --backup /private/path/rollback-recheck.private.json --target-project DEDICATED_STAGING --approved-plan /private/path/before.private.json --rollback

@@ -77,7 +77,7 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
    const {dataRef,record}=await resolve(t,uid);
    if(record.catalogVersion&&record.catalogVersion!==CATALOG_VERSION)throw error('failed-precondition','請先升級食譜版本相容處理。');
    if(record.recentMutationIds.includes(mutation.id))return result(record);
-   if(!Number.isInteger(mutation.baseRevision)||mutation.baseRevision<1||mutation.baseRevision>record.revision||record.revision-mutation.baseRevision>=128)throw error('failed-precondition','編輯版本已超過安全重試範圍。',{code:'sync/expired-mutation',latestSnapshot:record.snapshot,latestRevision:record.revision});
+   if(!Number.isInteger(mutation.baseRevision)||mutation.baseRevision<(record.minAcceptedRevision||1)||mutation.baseRevision>record.revision||record.revision-mutation.baseRevision>=128)throw error('failed-precondition','編輯版本已超過安全重試範圍。',{code:'sync/expired-mutation',latestSnapshot:record.snapshot,latestRevision:record.revision});
    let snapshot;
    if(replaceRequest){
     if(record.revision!==mutation.baseRevision)throw error('aborted','雲端已更新，請重新預覽匯入內容。',{code:'sync/conflict',latestSnapshot:record.snapshot,latestRevision:record.revision});
@@ -87,7 +87,7 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
     catch(e){if(e.code==='sync/conflict')throw error('aborted','另一個裝置已修改相同內容。',{code:e.code,paths:e.paths,latestSnapshot:record.snapshot,latestRevision:record.revision});throw error('invalid-argument',e.message||'菜單操作不正確。');}
    }
    verifyWindow(snapshot,today);
-   const next={...record,snapshot,revision:record.revision+1,recentMutationIds:[...record.recentMutationIds,mutation.id].slice(-128),updatedAt:serverTimestamp(),updatedBy:uid};
+   const next={...record,snapshot,revision:record.revision+1,...(replaceRequest?{minAcceptedRevision:record.revision+1}:{}),recentMutationIds:[...record.recentMutationIds,mutation.id].slice(-128),updatedAt:serverTimestamp(),updatedBy:uid};
    t.set(dataRef,next);return result(next);
   });
  }

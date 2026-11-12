@@ -176,8 +176,8 @@ final class AccountSession: ObservableObject {
             Task { @MainActor in
                 guard let self, self.generation == token else { return }
                 if let error { self.show(error); self.snapshot = nil; self.shopping = [:]; self.serverReady = false; return }
-                guard let snap, snap.exists else { self.snapshot = nil; self.shopping = [:]; self.serverReady = false; return }
-                guard !snap.metadata.isFromCache, let data = snap.data() else { return }
+                guard let snap, !snap.metadata.isFromCache, !snap.metadata.hasPendingWrites else { return }
+                guard snap.exists, let data = snap.data() else { self.snapshot = nil; self.shopping = [:]; self.serverReady = false; return }
                 guard data["status"] as? String == "active" else { self.snapshot = nil; self.phase = "帳號正在刪除"; return }
                 if let value = data["profile"], let p = try? decode(UserProfile.self, from: value) { self.profile = p }
                 self.profileRevision = data["profileRevision"] as? Int ?? self.profileRevision
@@ -375,7 +375,7 @@ final class AccountSession: ObservableObject {
         return try JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys])
     }
     func importData(_ data: Data, confirmed: Bool, expectedRevision: Int) async {
-        guard confirmed, !busy else { return }
+        guard confirmed, !busy, !hasPending else { return }
         let token = generation
         busy = true; defer { if token == generation { busy = false } }
         do {

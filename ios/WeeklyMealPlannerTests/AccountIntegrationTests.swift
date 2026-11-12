@@ -54,7 +54,7 @@ final class AccountIntegrationTests: XCTestCase {
         let userA = try XCTUnwrap(Auth.auth().currentUser)
         let tokenA = try await userA.getIDToken()
         let initial = try await call("bootstrap", token: tokenA)
-        let week = try XCTUnwrap(first.weeks.first)
+        let week = try XCTUnwrap(first.weeks.first, "Native state missing after HTTP bootstrap: " + first.phase + "; " + first.message)
         XCTAssertTrue(first.inventory.isEmpty)
         XCTAssertTrue(first.profile.equipment.isEmpty)
         _ = try await call("profile", ["profile": ["displayName": "REMOTE", "equipment": []], "revision": 1], token: tokenA)

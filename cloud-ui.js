@@ -268,7 +268,7 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
  window.addEventListener('online',online);
  window.addEventListener('offline',offline);
  document.addEventListener?.('visibilitychange',visible);
- if(accountMode)publicControls=installPublicControls({getClient:()=>client,getSession:()=>({user,home,base,revision,busy:busy||authBusy}),getPersonal:()=>clone(personal),setBusy:value=>{authBusy=value;renderStatus();},accept,toast:adapter.toast});
+ if(accountMode)publicControls=installPublicControls({getClient:()=>client,getSession:()=>({user,home,base,revision,unconfirmed,busy:busy||authBusy}),getPersonal:()=>clone(personal),setBusy:value=>{authBusy=value;renderStatus();},accept,toast:adapter.toast});
  const automaticTimer=setInterval(automaticSync,60000);automaticTimer.unref?.();
  connect();
  return {mutate,noteDraftChange,saveAccountDrafts,refresh:renderStatus,isSignedIn:()=>!!user,destroy:()=>{destroyed=true;bootGeneration++;connectionGeneration++;clearTimeout(preferenceTimer);clearInterval(automaticTimer);window.removeEventListener?.('beforeunload',beforeUnload);window.removeEventListener?.('online',online);window.removeEventListener?.('offline',offline);document.removeEventListener?.('visibilitychange',visible);client?.destroy();publicControls?.destroy();}};

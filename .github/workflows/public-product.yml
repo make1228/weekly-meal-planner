@@ -76,8 +76,11 @@ jobs:
           xcrun simctl boot "$MEAL_SIMULATOR" || true
           xcrun simctl bootstatus "$MEAL_SIMULATOR" -b
       - name: Run native unit and integration tests
-        timeout-minutes: 5
+        timeout-minutes: 8
         run: xcodebuild -project ios/WeeklyMealPlanner.xcodeproj -scheme WeeklyMealPlanner -destination "platform=iOS Simulator,id=$MEAL_SIMULATOR" -destination-timeout 45 -derivedDataPath /tmp/meal-derived -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 90 -maximum-test-execution-time-allowance 120 CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- MEAL_REQUIRE_INTEGRATION=YES test-without-building
+      - name: Native backend diagnostics
+        if: always()
+        run: tail -n 160 /tmp/meal-ios-emulators.log
       - name: Stop native integration backend
         if: always()
         run: |

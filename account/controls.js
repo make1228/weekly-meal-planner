@@ -52,7 +52,7 @@ export function installPublicControls({getClient,getSession,getPersonal,setBusy,
   $('#account-link-google').disabled=(s.user?.providers||[]).includes('google.com')||working;
   $('#account-link-apple').disabled=(s.user?.providers||[]).includes('apple.com')||working;
   $('#account-delete').disabled=working||!$('#account-delete-check').checked;
-  $('#account-import-confirm').disabled=working||!$('#account-import-check').checked;
+  $('#account-import-confirm').disabled=working||!!s.unconfirmed||!$('#account-import-check').checked;
  }
  apple.addEventListener('click',()=>run(()=>getClient().signIn('apple.com')));
  open.addEventListener('click',()=>{message('');fill();dialog.showModal();render();});
@@ -92,6 +92,7 @@ export function installPublicControls({getClient,getSession,getPersonal,setBusy,
  });
  $('#account-import-check').addEventListener('change',render);
  $('#account-import-confirm').addEventListener('click',()=>run(async()=>{
+  if(getSession().unconfirmed){message('請先核對上次儲存結果，再匯入備份。');return;}
   if(!preview||!$('#account-import-check').checked)return;
   await getClient().reauthenticate();
   const result=await getClient().importAccount(preview,newGenerationId(),previewRevision,true);
