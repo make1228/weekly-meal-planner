@@ -26,7 +26,7 @@ npm run dev
 CLI 可選本機已安裝的 Simulator：
 
 ```sh
-xcodebuild -project ios/WeeklyMealPlanner.xcodeproj -scheme WeeklyMealPlanner -destination 'platform=iOS Simulator,name=YOUR_INSTALLED_IPHONE' CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS=WeeklyMealPlanner/Simulator.entitlements test
+xcodebuild -project ios/WeeklyMealPlanner.xcodeproj -scheme WeeklyMealPlanner -destination 'platform=iOS Simulator,name=YOUR_INSTALLED_IPHONE' CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- test
 ```
 
 ## 獨立 staging、實機與 TestFlight

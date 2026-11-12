@@ -1,6 +1,6 @@
 """Deterministic Xcode project, with explicit source/resource and SPM dependencies."""
 from pathlib import Path
-import json, hashlib, plistlib
+import json, hashlib, plistlib, re
 root=Path(__file__).resolve().parents[1]/'ios'
 objects={}
 def ident(label):return hashlib.sha256(label.encode()).hexdigest()[:24].upper()
@@ -10,7 +10,7 @@ def ref(label):return ident(label)
 def dump(value,level=0):
  indent='\t'*level
  if isinstance(value,dict):
-  return '{\n'+''.join('\t'*(level+1)+str(k)+' = '+dump(v,level+1)+';\n' for k,v in value.items())+indent+'}'
+  return '{\n'+''.join('\t'*(level+1)+(str(k) if re.fullmatch(r'[A-Za-z0-9_]+',str(k)) else json.dumps(str(k)))+' = '+dump(v,level+1)+';\n' for k,v in value.items())+indent+'}'
  if isinstance(value,list):
   return '(\n'+''.join('\t'*(level+1)+dump(v,level+1)+',\n' for v in value)+indent+')' if value else '()'
  if isinstance(value,int):return str(value)
@@ -63,6 +63,7 @@ for target in ['project','app','test']:
   if target=='app':settings.update({'PRODUCT_NAME':'WeeklyMealPlanner','INFOPLIST_FILE':'WeeklyMealPlanner/Info.plist','CODE_SIGN_ENTITLEMENTS':'WeeklyMealPlanner/WeeklyMealPlanner.entitlements','CODE_SIGN_STYLE':'Automatic','TARGETED_DEVICE_FAMILY':'1,2','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','GENERATE_INFOPLIST_FILE':'NO','LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks']})
   if target=='test':settings.update({'PRODUCT_NAME':'$(TARGET_NAME)','PRODUCT_BUNDLE_IDENTIFIER':'com.example.weeklymealplanner.tests','GENERATE_INFOPLIST_FILE':'YES','TEST_HOST':'$(BUILT_PRODUCTS_DIR)/WeeklyMealPlanner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/WeeklyMealPlanner','BUNDLE_LOADER':'$(TEST_HOST)','CODE_SIGN_STYLE':'Automatic','TARGETED_DEVICE_FAMILY':'1,2'})
   if target=='test':settings.update({'TEST_HOST':'$(BUILT_PRODUCTS_DIR)/WeeklyMealPlanner.app/WeeklyMealPlanner','FRAMEWORK_SEARCH_PATHS':['$(inherited)','$(BUILT_PRODUCTS_DIR)','$(BUILT_PRODUCTS_DIR)/PackageFrameworks'],'SWIFT_INCLUDE_PATHS':['$(inherited)','$(BUILT_PRODUCTS_DIR)']})
+  if target in ['app','test']:settings['CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]']='WeeklyMealPlanner/Simulator.entitlements'
   ids.append(add('config:'+target+mode,'XCBuildConfiguration',buildSettings=settings,name=mode,**({'baseConfigurationReference':file(root/'App.xcconfig')} if target=='app' else {})))
  configs[target]=add('configlist:'+target,'XCConfigurationList',buildConfigurations=ids,defaultConfigurationIsVisible=0,defaultConfigurationName='Release')
 proxy=add('test-proxy','PBXContainerItemProxy',containerPortal=ref('project'),proxyType=1,remoteGlobalIDString=ref('app-target'),remoteInfo='WeeklyMealPlanner')

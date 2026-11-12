@@ -410,6 +410,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "WeeklyMealPlanner/Simulator.entitlements";
 			};
 			name = "Debug";
 			baseConfigurationReference = "1ABA834A9A05B3FC8AF98B92";
@@ -438,6 +439,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "WeeklyMealPlanner/Simulator.entitlements";
 			};
 			name = "Release";
 			baseConfigurationReference = "1ABA834A9A05B3FC8AF98B92";
@@ -480,6 +482,7 @@
 					"$(inherited)",
 					"$(BUILT_PRODUCTS_DIR)",
 				);
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "WeeklyMealPlanner/Simulator.entitlements";
 			};
 			name = "Debug";
 		};
@@ -512,6 +515,7 @@
 					"$(inherited)",
 					"$(BUILT_PRODUCTS_DIR)",
 				);
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "WeeklyMealPlanner/Simulator.entitlements";
 			};
 			name = "Release";
 		};
