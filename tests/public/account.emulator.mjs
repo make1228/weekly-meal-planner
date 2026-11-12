@@ -215,6 +215,32 @@ test('deletion barrier rejects already-authenticated late work instead of recrea
  assert.deepEqual(Object.keys(receipt).sort(),['completedAt','expiresAt','status','step']);
 });
 
+test('an uncertain cancelled cleanup write can retry after commit and still remove only its account data',async()=>{
+ const a=await user('cancelled-cleanup');const base=await a.call('bootstrap');
+ let attempts=0;
+ const wrapped=new Proxy(admin,{get(target,key){
+  if(key==='doc')return path=>{
+   const ref=target.doc(path);
+   if(path!==base.dataPath)return ref;
+   return new Proxy(ref,{get(document,property){
+    if(property==='delete')return async()=>{
+     attempts++;await document.delete();
+     if(attempts===1)throw Object.assign(new Error('synthetic lost acknowledgement'),{code:1});
+    };
+    const value=Reflect.get(document,property,document);return typeof value==='function'?value.bind(document):value;
+   }});
+  };
+  const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;
+ }});
+ const service=createAccountService({db:wrapped,auth:adminAuth(getAdminApp('account-admin-tests')),serverTimestamp:()=>new Date()});
+ const result=await service({action:'deleteAccount',payload:{confirmation:'DELETE_MY_ACCOUNT'}},{uid:a.uid,provider:'google.com',authTime:Math.floor(Date.now()/1000)});
+ assert.equal(result.status,'completed');assert.ok(attempts>=2);
+ assert.equal((await admin.doc(base.dataPath).get()).exists,false);
+ assert.equal((await admin.doc('mealPlannerUsers/'+a.uid).get()).exists,false);
+ assert.equal((await admin.doc('mealPlannerDeletionJobs/'+a.uid).get()).data().status,'completed');
+ await assert.rejects(adminAuth(getAdminApp('account-admin-tests')).getUser(a.uid),e=>e.code==='auth/user-not-found');
+});
+
 test('equal email across Google and Apple does not implicitly merge product accounts',async()=>{
  const a=await user('same-email'),email=a.auth.currentUser.providerData.find(p=>p.providerId==='google.com').email;
  const b=await user('other-provider');

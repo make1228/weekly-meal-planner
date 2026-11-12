@@ -32,7 +32,7 @@ function validateEnvironment(config){
   if(!config.firebase.projectId.startsWith('demo-')||!['127.0.0.1','localhost'].includes(globalThis.location?.hostname||'localhost'))throw fail('sync/unconfigured','模擬器只允許隔離的本機測試環境。');
  }else if(!config.appCheckSiteKey)throw fail('sync/unconfigured','App Check尚未設定。');
 }
-export async function createAccountSync({config,applyMutation,validateSnapshot=validateAccountSnapshot,onAuth=()=>{},onHome=()=>{},onData=()=>{},onStatus=()=>{},sdk:injectedSdk}={}){
+export async function createAccountSync({config,applyMutation,validateSnapshot=validateAccountSnapshot,onAuth=()=>{},onHome=()=>{},onData=()=>{},onStatus=()=>{},onDeleted=()=>true,sdk:injectedSdk}={}){
  const notify=(phase,extra={})=>onStatus({state:phase,phase,...extra});
  try{validateEnvironment(config);}catch(error){notify('unconfigured',{message:error.message});return {available:false,destroy(){}};}
  const sdk=injectedSdk||await sdkModules();
@@ -129,7 +129,12 @@ export async function createAccountSync({config,applyMutation,validateSnapshot=v
    }
    if(!active(s))throw fail('sync/signed-out','登入帳號已變更，停止刪除。');
    const resultData=await call('deleteAccount',{confirmation:'DELETE_MY_ACCOUNT'});
-   if(active(s))await sdk.signOut(auth);return resultData;
+   let deviceCleanupFailed=false;
+   if(active(s)){
+    try{deviceCleanupFailed=(await onDeleted({uid:s.uid,projectId:config.firebase.projectId}))===false;}catch{deviceCleanupFailed=true;}
+    if(active(s))await sdk.signOut(auth);
+   }
+   return {...resultData,deviceCleanupFailed};
   },
   async deletionStatus(){return call('deletionStatus');},
   getUser:()=>publicUser(user),

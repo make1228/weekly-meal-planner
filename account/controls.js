@@ -101,7 +101,7 @@ export function installPublicControls({getClient,getSession,getPersonal,setBusy,
  $('#account-delete-check').addEventListener('change',render);
  $('#account-delete').addEventListener('click',()=>run(async()=>{
   if(!$('#account-delete-check').checked)return;
-  await getClient().deleteAccount(true);close();toast('此產品帳號已刪除。');
+  const result=await getClient().deleteAccount(true);close();toast(result.deviceCleanupFailed?'雲端帳號已刪除；此裝置快取未能清除，請清除此網站資料。':'此產品帳號已刪除。');
  }));
  $('#account-deletion-status').addEventListener('click',()=>run(async()=>{const status=await getClient().deletionStatus();message(status.status==='completed'?'刪除已完成。':status.status==='active'?'帳號仍在使用中。':'刪除尚未完成，可重新驗證後重試。');}));
  return {render,destroy(){close();dialog.remove();apple.remove();open.remove();}};

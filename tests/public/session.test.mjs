@@ -5,21 +5,21 @@ import {emptyAccountSnapshot} from '../../account/model.js';
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 async function fixture(){
  const app={name:'meal-public-test',options:{projectId:'isolated-test'}};
- const auth={currentUser:null},calls=[],homes=[],records=[],listeners=[];
+ const auth={currentUser:null},calls=[],homes=[],records=[],listeners=[],deleted=[];
  let authCallback,reauth=deferred(),profileReply=null,revoke=deferred();
  const snapshot=emptyAccountSnapshot(),record={snapshot,revision:1,recentMutationIds:[],profile:{displayName:'',equipment:[]},profileRevision:1,dataPath:'unused'};
  const sdk={getApps:()=>[app],initializeApp:()=>app,getAuth:()=>auth,getFirestore:()=>({}),getFunctions:()=>({}),initializeAppCheck(){calls.push({action:'app-check-initialize'});},ReCaptchaEnterpriseProvider:class{},
-  httpsCallable:()=>async request=>{calls.push(request);if(request.action==='profile'&&profileReply)return profileReply.promise;return {data:structuredClone(record)};},
+  httpsCallable:()=>async request=>{calls.push(request);if(request.action==='profile'&&profileReply)return profileReply.promise;if(request.action==='deleteAccount')return {data:{status:'completed'}};return {data:structuredClone(record)};},
   onAuthStateChanged:(_,cb)=>{authCallback=cb;return ()=>{};},
   doc:(_,path)=>path,onSnapshot:(path,...args)=>{listeners.push({path,callback:args.find(x=>typeof x==='function')});return ()=>{};},
   GoogleAuthProvider:class{setCustomParameters(){}},OAuthProvider:class{addScope(){}static credentialFromResult(){return {accessToken:'fixture'};}},
   reauthenticateWithPopup:()=>reauth.promise,linkWithPopup:async()=>{calls.push({action:'link'});},revokeAccessToken:()=>revoke.promise,signOut:async()=>{auth.currentUser=null;await authCallback(null);}
  };
- const client=await createAccountSync({config:{mode:'public',environment:'test',firebase:{projectId:'isolated-test'},appCheckSiteKey:'fixture'},sdk,onHome:value=>homes.push(value),onData:(value,meta)=>records.push({value,meta})});
+ const client=await createAccountSync({config:{mode:'public',environment:'test',firebase:{projectId:'isolated-test'},appCheckSiteKey:'fixture'},sdk,onHome:value=>homes.push(value),onData:(value,meta)=>records.push({value,meta}),onDeleted:identity=>{deleted.push(identity);return true;}});
  const user=(uid,provider='google.com')=>({uid,email:uid+'@example.test',providerData:[{providerId:provider}]});
  const switchTo=async value=>{auth.currentUser=value;await authCallback(value);};
  await switchTo(user('A'));
- return {sdk,client,calls,homes,records,listeners,user,switchTo,reauth,revoke,profileHold:()=>profileReply=deferred()};
+ return {sdk,client,calls,homes,records,listeners,deleted,user,switchTo,reauth,revoke,profileHold:()=>profileReply=deferred()};
 }
 test('provider linking is cancelled if the UID changes during original-provider reauthentication',async()=>{
  const f=await fixture(),pending=f.client.linkProvider('apple.com',true);
@@ -72,4 +72,13 @@ test('same-UID auth refresh during explicit linking does not cancel the approved
  const f=await fixture(),pending=f.client.linkProvider('apple.com',true);
  await f.switchTo(f.user('A'));f.reauth.resolve({});await pending;
  assert.equal(f.calls.filter(x=>x.action==='link').length,1);assert.equal(f.client.getUser().uid,'A');f.client.destroy();
+});
+
+test('confirmed account deletion cleans only its captured project/UID device scope before sign-out',async()=>{
+ const f=await fixture(),pending=f.client.deleteAccount(true);f.reauth.resolve({});
+ const result=await pending;
+ assert.equal(result.status,'completed');assert.equal(result.deviceCleanupFailed,false);
+ assert.deepEqual(f.deleted,[{uid:'A',projectId:'isolated-test'}]);
+ assert.equal(f.client.getUser(),null);assert.equal(f.client.getProfile(),null);assert.equal(f.homes.at(-1),null);
+ f.client.destroy();
 });

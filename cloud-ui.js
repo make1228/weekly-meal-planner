@@ -203,7 +203,10 @@ export function installCloudSync(adapter,{config=firebaseConfig,transport=create
   const token=++bootGeneration;client?.destroy();client=null;if(user)onAuth(null);phase='connecting';error('');renderStatus();
   try{
    const guarded=callback=>(...args)=>{if(token===bootGeneration)callback(...args);};
-   const created=await transport({config,applyMutation,validateSnapshot,onAuth:guarded(onAuth),onHome:guarded(onHome),onData:guarded(accept),onStatus:guarded(status=>{phase=status.phase||status.state;if(status.message)error(status.message);renderStatus();})});
+   const created=await transport({config,applyMutation,validateSnapshot,onAuth:guarded(onAuth),onHome:guarded(onHome),onData:guarded(accept),onStatus:guarded(status=>{phase=status.phase||status.state;if(status.message)error(status.message);renderStatus();}),onDeleted:({uid,projectId})=>{
+    if(!accountMode||projectId!==config.firebase.projectId||typeof uid!=='string'||!uid)return false;
+    try{localStorage.removeItem(draftPrefix+uid);localStorage.removeItem(pendingPrefix+(config?.projectId||config?.firebase?.projectId||'unconfigured')+':'+uid);return true;}catch{return false;}
+   }});
    // Auth callbacks can run while the async factory is initializing.
    if(token!==bootGeneration){created.destroy();return;}
    client=created;renderStatus();

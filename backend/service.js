@@ -28,6 +28,16 @@ function verifyWindow(snapshot,today){
 function result(record){return {catalogVersion:record.catalogVersion||CATALOG_VERSION,snapshot:record.snapshot,revision:record.revision,recentMutationIds:record.recentMutationIds||[],updatedAt:record.updatedAt?.toDate?.()?.toISOString?.()||null};}
 /** Actual transaction service used by Cloud Functions and emulator integration tests. */
 export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date()}){
+ async function cleanupWrite(action){
+  for(let attempt=0;;attempt++){
+   try{return await action();}catch(e){
+    if(attempt>=2||![1,4,10,13,14].includes(Number(e.code)))throw e;
+    // Only idempotent deletes/completion receipts use this helper. A commit
+    // followed by a lost acknowledgement is safe to repeat on the same path.
+    await new Promise(resolve=>setTimeout(resolve,100*(attempt+1)));
+   }
+  }
+ }
  async function rateLimit(uid){
   const now=clock().getTime(),ref=db.doc('mealPlannerRateLimits/'+uid),bucket=Math.floor(now/60000);
   await db.runTransaction(async t=>{
@@ -112,9 +122,9 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
    // idempotently; a recursive BulkWriter/query is unnecessary and can cancel
    // while other clients are listening. Add future private paths explicitly
    // alongside their schema migration and lifecycle tests.
-   await db.doc(privatePath(uid)).delete();
+   await cleanupWrite(()=>db.doc(privatePath(uid)).delete());
    step='binding';
-   await db.doc(bindingPath(uid)).delete();
+   await cleanupWrite(()=>db.doc(bindingPath(uid)).delete());
    if(typeof legacySource==='string'&&!legacySource.includes('/')){
     await db.runTransaction(async t=>{
      const remaining=await t.get(db.collection('mealPlannerLegacyBindings').where('sourceId','==',legacySource).limit(1));
@@ -124,15 +134,15 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
     });
    }
    step='profile';
-   await db.doc('mealPlannerRateLimits/'+uid).delete();
-   await ref.delete();
+   await cleanupWrite(()=>db.doc('mealPlannerRateLimits/'+uid).delete());
+   await cleanupWrite(()=>ref.delete());
    step='auth';
    await job.set({status:'deleting',step:'auth',updatedAt:serverTimestamp()},{merge:true});
    try{await auth.revokeRefreshTokens(uid);await auth.deleteUser(uid);}catch(e){if(e.code!=='auth/user-not-found')throw e;}
    step='cleanup';
    // Keep a minimal barrier for requests that authenticated before deletion
    // but reach their transaction afterwards. No profile/source/content stays.
-   await job.set({status:'completed',step:'done',completedAt:serverTimestamp(),expiresAt:new Date(clock().getTime()+86400000)});
+   await cleanupWrite(()=>job.set({status:'completed',step:'done',completedAt:serverTimestamp(),expiresAt:new Date(clock().getTime()+86400000)}));
    return {status:'completed'};
   }catch(e){
    const errorCode=String(e.code||'internal');

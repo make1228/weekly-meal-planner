@@ -5,18 +5,19 @@
 ## 已完成
 
 - 原版 Node 回歸 222項通過（含200道完整食譜、四種風格各50、份量、兩週、換菜、已煮與商店列）。改造後再次執行 `npm test`，222/222通過。
-- Auth/Firestore官方emulator + 實際callable HTTP backend通過，細項見 `tests/public/account.emulator.mjs`。執行 `npm run test:public`，32/32通過；含舊Rules與新增API、保留UID的Auth匯入、遷移、撤權、同Email隔離、不同回饋欄位併發合併、備份還原後阻擋舊未知操作，以及刪帳後晚到請求不能重建私人資料。
+- Auth/Firestore官方emulator + 實際callable HTTP backend通過，細項見 `tests/public/account.emulator.mjs`。執行 `npm run test:public`，33/33通過；含舊Rules與新增API、保留UID的Auth匯入、遷移、撤權、同Email隔離、不同回饋欄位併發合併、備份還原後阻擋舊未知操作，以及刪帳後晚到請求不能重建私人資料。新增「刪除已提交但回應遺失」故障注入，驗證同一路徑有限重試不重建或重複處理資料。
 - Chrome桌面實際UI：新UID空白設定、A產生14餐、切下週仍空白、切回本週14道完全不變、單餐替換、已煮扣採買、設備設定保存、換B無A菜單與設備、切回A及reload恢復14餐和已煮狀態。
 - 實際帳號匯出下載為schemaVersion2／14餐／正確測試profile；匿名本機資料先預覽，確認勾選前不能匯入，沒有自動覆蓋雲端。
 - 完整食譜有備料、步驟、熟度、提醒、AI／未逐道試煮標示；好市多／全聯各一列，品牌型號只屬使用者設定，不出現在新帳號預設設備。
 
-- 另有8項帳號非同步安全測試通過：綁定／刪帳／profile／晚到監聽跨UID切換，未支援食譜版本停止操作重連不重複初始化及同UID重新驗證不誤判換帳號，避免上一帳號的回應套用到下一帳號。另驗證暫時性伺服器錯誤在SDK邊界保留重試分類，不誤當輸入錯誤清掉待確認操作。
+- 另有9項帳號非同步安全測試通過：綁定／刪帳／profile／晚到監聽跨UID切換，未支援食譜版本停止操作重連不重複初始化及同UID重新驗證不誤判換帳號，避免上一帳號的回應套用到下一帳號。另含確認刪帳成功後，以原project/UID清理裝置草稿與待送紀錄並登出。另驗證暫時性伺服器錯誤在SDK邊界保留重試分類，不誤當輸入錯誤清掉待確認操作。
+- `npm run test:accounts`合計12/12；包含上述9項、1項錯誤分類及2項與public指令重複的純遷移測試，不將重複測試另加成獨立覆蓋。
 - 停用帳號後，先前憑證不能bootstrap、查詢刪除進度或觸發刪除，原私人文件仍為active；這項後端驗證涵蓋生命週期API，並非只有一般菜單寫入。
 
 ## 尚未完成／不能混稱通過
 
-- 未取得Firebase管理連線，沒有真實Auth盤點／私人備份，也沒有雲端staging部署網址。模擬器遷移不等於正式遷移。
-- 此Linux環境無Xcode／Swift，已透過GitHub macOS CI實際編譯成功，200道食譜完整性及9組份量的2項XCTest通過。run43211488592中，原生整合的雙向更新、profile衝突、冪等庫存、已煮、重建session還原、B空白與拒絕讀A資料的斷言均通過；最後測試帳號清理回報deletion-retry，因此整個測試方法仍為失敗。不能把部分斷言通過稱為完整測試通過；後續版本保留刪除失敗階段與非內容錯誤代碼供定位。
+- 已以Firebase Console唯讀盤點真實來源並保存業務內容備份（revision150、14餐、31筆庫存）；仍缺Admin SDK／ADC管理連線及完整Auth備份。來源Auth只有1個Google UID，另一位僅有白名單信箱，不能宣稱真實兩UID遷移已完成。沒有雲端staging部署網址。模擬器遷移不等於正式遷移。
+- 此Linux環境無Xcode／Swift，已透過GitHub macOS CI實際編譯成功，200道食譜完整性及9組份量的2項XCTest通過。run43217234103中，原生整合的雙向更新、profile衝突、冪等庫存、已煮、重建session還原、B空白與拒絕讀A資料的斷言均通過；最後A測試帳號清理的Firestore刪除回報CANCELLED(1)，因此整個測試方法仍為失敗。後續版本對冪等清理加有限重試並保留階段／非內容錯誤代碼，正等待新macOS CI。不能把部分斷言通過稱為完整測試通過。
 - 真實Google／AppleOAuth、Apple隱藏Email群組設定、Apple授權撤銷、AppCheck enforced、Web↔真實iOS雙向與關閉重開、Safari、375px、平板、iPhone/iPad實機、TestFlight尚未驗證。
 - 補做窄版驗收時瀏覽器控制連線逾時，因此沒有將375px／平板標為通過；既有Chrome桌面截圖與操作紀錄有效。
 - 沒有公開新正式服務、修改現行正式網域、啟用收費或合併main。

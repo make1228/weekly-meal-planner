@@ -7,6 +7,7 @@ Node 22 或更新、Java 21；首次使用需能下載 npm 套件及 Firebase em
 ```sh
 npm ci
 npm test
+npm run test:accounts
 npm run build:public
 npm run test:public
 npm run dev
@@ -23,7 +24,7 @@ npm run dev
 1. 建立獨立開發／staging／production 專案（正式 Web 與 iOS 共用 production，staging 只共用 staging）。Firestore 地區先確認，建立後不可隨意變更。
 2. 啟用 Google、Apple；停用不使用的匿名／密碼等登入。新專案 Auth 的 `signIn.allowDuplicateEmails=true`，不可依 Email 自動合併。設定授權網域、Web OAuth client、iOS bundleID及URL scheme。Apple App ID 與 Web Services ID 使用同一產品群組，Firebase Apple provider 放後端私鑰，設定官方回呼URL及隱藏信箱 relay；不把 `.p8` 放 repo／App。
 3. 設定 App Check：Web reCAPTCHA Enterprise；iOS正式 App Attest，測試 Debug token 僅註冊 staging。Function 已強制驗證；Firestore 也在主控台檢查指標後啟用 enforcement。App Check 不取代 Auth/Rules，也不是防濫用的完整限額。
-4. Function 服務身分只給此產品需要的 Firestore、Auth 使用者刪除/撤銷與 `firebaseauth.configs.get` 等最小權限。不能給其他產品管理權。設定 logging、錯誤率／延遲／拒絕請求告警、預算告警、備份保存政策。
+4. Function 服務身分只給此產品需要的 Firestore、Auth 使用者刪除/撤銷與 `firebaseauth.configs.get` 等最小權限。不能給其他產品管理權。設定 logging、錯誤率／延遲／拒絕請求告警、預算告警、備份保存政策。核准最小刪帳安全收據的保存期限，並確認TTL／受控清理的費用與實際執行；不能只依expiresAt欄位聲稱紀錄已清除。
 5. 將 `config/public.example.json` 複製到私有工作路徑，填 staging 公開設定。API key 是客戶端設定，不是管理憑證；管理金鑰不得放入其中。
 
 ```sh
@@ -34,9 +35,13 @@ npx firebase deploy --config firebase.public.json --project DEDICATED_STAGING --
 
 `preflight-public` 只讀 Auth 設定並驗證來源專案防護、provider 與明確綁定政策；失敗停止部署。此檢查不會開通計費或自動更改政策。部署前後再次檢查 App Check／Rules 與 hosting 實際狀態，使用專用 disposable test accounts 走完整產品驗收。沒有已部署網址時不可把 localhost 或純靜態預覽稱為雲端同步 staging。
 
-## 既有兩人帳號備份／盤點（尚未讀取正式資料）
+## 既有兩人帳號備份／盤點
 
-程式來源基線已由 Git commit 保留。真正的雲端備份須管理端 ADC／受控工作環境，輸出包含私人資料，不上傳公共 GitHub。
+2026-11-12已以Firebase Console唯讀確認來源Spark／asia-east1，並保存revision150的私人業務內容副本：14餐、31筆庫存、11項偏好欄位，下週未排。備份通過現有state／snapshot驗證，逐項核對recipeId、庫存、忌口與週次，來源寫入0。私人檔案不放公共GitHub。此副本可用於內容還原，未包含完整Auth、provider subject、Firestore時間戳metadata或各裝置未送草稿，不能直接當成下方管理端遷移的核准備份。
+
+來源Auth目前只有1個Google帳號；另一位的白名單信箱尚未對應已註冊UID。先由該使用者在原產品登入，再重新執行管理端備份與身分核實；不可用Email猜UID、建立假mapping或放寬兩位身分檢查。原有來源、白名單與共用方式均未更動。
+
+程式來源基線已由Git commit保留。完整雲端／Auth備份仍須管理端ADC／受控工作環境，輸出包含私人資料，不上傳公共GitHub：
 
 ```sh
 node scripts/migrate-legacy.mjs --source-project nora-after-hours --backup /private/path/before.private.json
@@ -64,6 +69,8 @@ node scripts/migrate-legacy.mjs --source-project nora-after-hours --backup /priv
 ## 回復與失敗處理
 
 正式切換前停止**菜單產品**的寫入並做最後備份，不停止其他看板；避免舊／新專案雙寫分岔。雙人共同驗收後才能切正式網站。正式切換還必須從實際雲端Rules／服務盤點，退役舊菜單資料路徑的客戶端存取；只做網站重新導向不足以撤銷舊資料權限。這一步只限本產品並需另行確認，不能用本repo的Rules覆蓋共用專案中其他看板規則。切換期間新站與舊站只允許一邊可寫，正式網址未經確認不切換。
+
+兩人的各個舊裝置也先從原頁面匯出備份，另核對未送設定、庫存草稿與待確認操作；原backup-button的檔案含pantryDraft。先確認雲端收據，不能將不確定是否已執行的庫存操作以新id重送到新環境。新來源無法自動讀取舊來源瀏覽器儲存；需透過備份與預覽流程演練還原，或人工核對草稿。真實舊裝置草稿遷移尚未執行，不得直接清除原網站資料。
 
 ```sh
 node scripts/migrate-legacy.mjs --source-project nora-after-hours --backup /private/path/rollback-recheck.private.json --target-project DEDICATED_STAGING --approved-plan /private/path/before.private.json --rollback
