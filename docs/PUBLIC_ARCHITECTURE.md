@@ -7,7 +7,7 @@
 - main 與完整版參考 commit 均為 `12f05832debf5fea5c0acbf58cbc1526822499ba`；開工後再次查核 main 未有更新。
 - 原 GitHub Pages 正式網址維持 `https://make1228.github.io/weekly-meal-planner/`，原部署成功（GitHub Actions run 43143801952，main SHA一致）。來源包含 200 道完整食譜，四種風格各 50 道；原 222 項測試重新通過。
 - 原 `firebase-config.js` 指向共用專案 `nora-after-hours`；原 `.firebaserc`、`firebase.json`、`firestore.rules` 沒有改動。其他產品的 Firebase 設定與 Auth 使用者沒有更動。
-- 本輪沒有取得雲端管理授權，尚未讀取、備份或盤點正式 Auth/Firestore 私人資料，不能把程式備份或模擬資料遷移稱為正式備份。
+- 目前沒有可用的 Firebase 管理連線，尚未讀取、備份或盤點正式 Auth/Firestore 私人資料，不能把程式備份或模擬資料遷移稱為正式備份。
 - 改造在獨立分支進行，沒有正式切換。`account/config.js` 預設仍為 legacy；只有 `build:public` 產物使用公版環境。
 
 ## 選擇與理由

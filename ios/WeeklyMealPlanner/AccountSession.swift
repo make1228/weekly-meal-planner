@@ -106,6 +106,13 @@ final class AccountSession: ObservableObject {
         } catch { show(error) }
     }
     func loadCatalog() async {
+        // The immutable bundled catalog is immediately available offline. A
+        // slow refresh must not hold login or recipe browsing until timeout.
+        if catalog == nil, let local = Bundle.main.url(forResource: "catalog.v2", withExtension: "json"),
+           let data = try? Data(contentsOf: local), let bundled = try? JSONDecoder().decode(Catalog.self, from: data),
+           bundled.schemaVersion == 2, bundled.recipes.count >= 200 {
+            catalog = bundled
+        }
         guard let url = configuration?.catalogURL else { return }
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
@@ -114,10 +121,7 @@ final class AccountSession: ObservableObject {
             guard value.schemaVersion == 2, value.recipes.count >= 200 else { throw URLError(.cannotParseResponse) }
             catalog = value
         } catch {
-            if let local = Bundle.main.url(forResource: "catalog.v2", withExtension: "json"),
-               let data = try? Data(contentsOf: local), let bundled = try? JSONDecoder().decode(Catalog.self, from: data) {
-                catalog = bundled
-            } else { message = "食譜庫尚未載入，請確認網路後重試。" }
+            if catalog == nil { message = "食譜庫尚未載入，請確認網路後重試。" }
         }
     }
     private func rpc(_ action: String, _ payload: [String: Any] = [:]) async throws -> [String: Any] {

@@ -16,7 +16,7 @@
 ## 尚未完成／不能混稱通過
 
 - 未取得Firebase管理連線，沒有真實Auth盤點／私人備份，也沒有雲端staging部署網址。模擬器遷移不等於正式遷移。
-- 此Linux環境無Xcode／Swift，已透過GitHub macOS CI實際編譯成功，200道食譜完整性及9組份量的2項XCTest通過。原生帳號整合測試仍在修正Firestore監聽初始化／離線狀態，未稱通過。
+- 此Linux環境無Xcode／Swift，已透過GitHub macOS CI實際編譯成功，200道食譜完整性及9組份量的2項XCTest通過。原生帳號整合測試在run43208469194的首次資料載入15秒等候逾時，尚未通過；後續修正版增加真正後端讀寫／Rules就緒預檢、動態錯誤診斷、啟動先讀隨附食譜庫，仍待CI確認。
 - 真實Google／AppleOAuth、Apple隱藏Email群組設定、Apple授權撤銷、AppCheck enforced、Web↔真實iOS雙向與關閉重開、Safari、375px、平板、iPhone/iPad實機、TestFlight尚未驗證。
 - 補做窄版驗收時瀏覽器控制連線逾時，因此沒有將375px／平板標為通過；既有Chrome桌面截圖與操作紀錄有效。
 - 沒有公開新正式服務、修改現行正式網域、啟用收費或合併main。
@@ -24,3 +24,19 @@
 測試指令、環境差異與回復程序分別見 OPERATIONS、ios/README。僅在取得具體證據後才將待驗證項改成通過。
 
 UI證據：[菜單與帳號](evidence/web-account-menu.jpg)、[完整食譜及通路列](evidence/web-recipe.jpg)。僅虛構測試資料。
+
+## 驗收對照
+
+| 項目 | 已有證據 | 待補驗證 |
+| --- | --- | --- |
+| 同帳號雙端／重開 | 兩個獨立Web SDK客戶端共用UID、雙向API寫入／監聽；Chrome reload還原 | 最新原生整合CI結果、實際Web＋iOS UI與雲端 |
+| Google／Apple綁定 | Auth emulator明確綁定、隱藏Email、同Email不合併、憑證已被占用 | 真實OAuth、Apple群組與授權撤銷 |
+| 跨UID防護 | 實際Rules拒絕get/list/write、owner偽造及自行建立相容mapping | 真實staging同組測例與AppCheck enforcement |
+| 換帳號／舊共用 | Chrome A/B無資料串用；非同步安全測試；核實舊UID共享副本測試 | 真實兩人身分與來源備份盤點 |
+| 併發／冪等 | transaction欄位合併、同欄位衝突、重送不重複增加庫存 | 多裝置UI同時換菜／改庫存／勾選的完整操作驗收 |
+| 產品回歸 | 原222項、200道4×50、兩週／份量／已煮／商店列 | 真實裝置版面與跨週一長時間使用 |
+| 中斷／撤權／遷移 | 撤權、暫時錯誤保留重試、原子遷移、重跑／回復拒絕覆蓋新資料 | 真實專案遷移演練與營運中斷恢復 |
+| 匯出／刪帳 | Chrome實際匯出／匯入預覽；後端刪帳／中斷重試／保留另一位共用者 | 真實OAuth重新驗證後從UI完成刪帳、Apple撤銷 |
+| 瀏覽器／裝置 | Chrome桌面UI；GitHub iPhone Simulator編譯及2項食譜／份量測試 | Safari、375px、平板、實機、TestFlight |
+
+雲端staging可用後，Chrome DevTools與Safari Responsive Design Mode分別以375px、768px及桌面寬度走上述產品流程，核對橫向溢出、dialog關閉／焦點、兩通路各一列、食譜長文與表單鍵盤；保留畫面與版本證據。這是後續驗收步驟，尚未執行。

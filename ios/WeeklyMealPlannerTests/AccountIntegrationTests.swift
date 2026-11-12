@@ -6,12 +6,12 @@ import FirebaseFirestore
 @MainActor
 final class AccountIntegrationTests: XCTestCase {
     private let endpoint = URL(string: "http://127.0.0.1:5001/demo-weekly-meal-public/us-central1/mealAccount")!
-    private func eventually(_ message: String, condition: () -> Bool) async throws {
-        for _ in 0..<150 {
+    private func eventually(_ message: @autoclosure () -> String, timeout: Double = 15, condition: () -> Bool) async throws {
+        for _ in 0..<Int(timeout * 10) {
             if condition() { return }
             try await Task.sleep(for: .milliseconds(100))
         }
-        XCTFail(message)
+        XCTFail(message())
         throw URLError(.timedOut)
     }
     private func call(_ action: String, _ payload: [String: Any] = [:], token: String) async throws -> [String: Any] {
@@ -51,7 +51,7 @@ final class AccountIntegrationTests: XCTestCase {
         XCTAssertFalse(Firestore.firestore().settings.isSSLEnabled, "The local Firestore emulator is plaintext; staging/release must keep TLS")
         let label = "ios-" + UUID().uuidString.lowercased()
         await first.emulatorSignIn(label)
-        try await eventually("Native Auth/bootstrap did not become ready: " + first.message) { first.canEdit }
+        try await eventually("Native Auth/bootstrap not ready: phase=\(first.phase); message=\(first.message); uid=\(first.uid != nil); server=\(first.serverReady); online=\(first.online); pending=\(first.hasPending); busy=\(first.busy); snapshot=\(first.snapshot != nil); catalog=\(first.catalog?.version ?? "none")/\(first.catalogVersion)", timeout: 45) { first.canEdit }
         let uidA = try XCTUnwrap(first.uid)
         let userA = try XCTUnwrap(Auth.auth().currentUser)
         let tokenA = try await userA.getIDToken()

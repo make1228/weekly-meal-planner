@@ -67,6 +67,7 @@ jobs:
           }
           if(!ready)throw new Error('Native integration backend did not start');
           JS
+          node scripts/warm-native-emulators.mjs
       - name: Build native app and tests
         timeout-minutes: 12
         run: |

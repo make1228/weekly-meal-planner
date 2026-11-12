@@ -20,10 +20,13 @@
 
 刪除舊共用其中一位帳號，只刪其個人設定／UID mapping／私人資料；另一位仍有權使用的原共同菜單副本保留，畫面已說明；最後一位刪帳後清除無使用者對應的副本。原共用專案來源備份需在正式遷移收尾另外確認保存／清除政策，不能默認已刪除。不得將含私人備份／信箱／UID列表提交公開 GitHub。雲端備份保留天數、資料控制者、正式聯絡方式、資料區域、終止服務及第三方條款仍需產品負責人定案；定案後更新政策與刪除流程。沒有據此擅自啟用付費備份或排程服務。
 
+Apple最新刪帳說明也涵蓋與帳號相關的共享使用者內容。舊共同快照沒有逐筆作者歸屬；目前移除個人profile／mapping並匿名化updatedBy，保留另一人的共同菜單。正式公開前，仍須核對共同內容的歸屬與個人資料刪除方式；不能把「保留共同副本」直接當成符合全部刪帳要求或送審通過的證據。
+
 官方查核來源：
 
 - https://developer.apple.com/app-store/review/guidelines/ （4.8、5.1.1）
 - https://developer.apple.com/support/offering-account-deletion-in-your-app/
+- https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion （上述說明的新位置）
 - https://firebase.google.com/docs/auth/ios/apple （Token revocation）
 - https://firebase.google.com/docs/auth/web/apple （Token revocation）
 - https://firebase.google.com/docs/auth/users （自動連結行為）
