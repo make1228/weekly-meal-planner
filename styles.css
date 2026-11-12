@@ -102,3 +102,20 @@
 .retailer-offer .offer-details-content p{margin:5px 0 0;line-height:1.7}
 .retailer-offer .offer-details-content .store-availability,.retailer-offer .offer-details-content .costco-prep{font-size:11px}
 @media(max-width:760px){.shopping-item-info>.ingredient-offers{grid-column:1/-1}.ingredient-offers .retailer-offer{gap:4px}.retailer-offer>.costco-badge{font-size:10px}}
+
+/* Full cooking instructions: retain the compact retailer rows above. */
+#recipe-dialog{max-width:1000px}
+#recipe-dialog .recipe-columns{grid-template-columns:minmax(260px,.8fr) minmax(0,1.2fr);gap:28px;align-items:start}
+#recipe-dialog .cooking-guide{min-width:0}
+#recipe-dialog .cooking-guide h3{font-size:14px;margin:18px 0 9px;color:var(--ink)}
+.cooking-timing{font-size:12px;font-weight:600;color:var(--green)}
+.cooking-time-note{font-size:11px;color:#6c7866;margin:5px 0 12px;line-height:1.7}
+#recipe-dialog .recipe-steps,#recipe-dialog .recipe-preparation,.cooking-doneness ul,.cooking-tips ul{font-size:13px;color:#465541;line-height:1.85;margin:0;padding-left:21px}
+#recipe-dialog .recipe-steps li{margin-bottom:14px}
+#recipe-dialog .recipe-preparation li,.cooking-doneness li,.cooking-tips li{margin-bottom:7px}
+.cooking-doneness{padding:1px 12px 9px;background:#f0f4eb;border-radius:9px;margin-top:16px}
+.cooking-doneness h3{margin-top:10px!important}
+.cooking-tips{border-top:1px solid var(--line);margin-top:16px}
+#recipe-dialog .recipe-source{font-size:11px;color:#697661;line-height:1.9}
+.recipe-source a{color:var(--green);text-underline-offset:2px}
+@media(max-width:700px){#recipe-dialog .recipe-columns{grid-template-columns:minmax(0,1fr);gap:20px}#recipe-dialog{padding:26px 18px}#recipe-dialog .recipe-dialog-meta{flex-wrap:wrap;gap:6px 12px}}

@@ -1,3 +1,4 @@
+import {getRecipeGuide} from './recipe-guides/index.js';
 import {italianRecipes} from './recipes-italian.js';
 import {westernRecipes} from './recipes-western.js';
 import {homeRecipes} from './recipes-home.js';
@@ -18,7 +19,7 @@ export const INGREDIENTS = [
  ['oil','橄欖油','ml','調味與其他'],['soy','醬油','ml','調味與其他'],['salt','鹽','g','調味與其他'],['pepper','黑胡椒','g','調味與其他'],['milk','牛奶','ml','調味與其他'],['butter','奶油','g','調味與其他'],['sesame','白芝麻','g','調味與其他']
 ].map(([id,name,unit,category])=>({id,name,unit,category}));
 const ingredientMap = new Map(INGREDIENTS.map(x=>[x.id,x]));
-const recipe = (id,title,cuisine,protein,minutes,equipment,starch,items,steps,tag='高蛋白')=>({id,title,cuisine,protein,minutes,equipment,starch,tag,source:{kind:'ai-curated',label:'AI 整理的內建食譜'},baseServings:2,description:`${title}，預估 ${minutes} 分鐘完成的家常料理。`,ingredients:items.map(([ingredientId,quantity])=>({ingredientId,quantity})),steps});
+const recipe = (id,title,cuisine,protein,minutes,equipment,starch,items,steps,tag='高蛋白')=>{const base={id,title,cuisine,protein,minutes,equipment,starch,tag,source:{kind:'ai-curated',label:'AI 整理的內建食譜'},baseServings:2,description:`${title}，預估 ${minutes} 分鐘完成的家常料理。`,ingredients:items.map(([ingredientId,quantity])=>({ingredientId,quantity}))};const details=getRecipeGuide(base);return {...base,steps:details.steps,details};};
 export const RECIPES = [
  recipe('lemon-chicken','檸檬香煎雞腿佐花椰菜','西式','雞肉',25,'IH 爐','low',[['chicken',360],['broccoli',300],['lemon',1],['garlic',10],['oil',15],['salt',2],['pepper',1]],['雞腿擦乾，以鹽、黑胡椒與檸檬汁醃一下。','平底鍋加油，雞皮朝下煎香，再翻面煎至全熟。','花椰菜蒸熟，與雞腿盛盤，淋上剩餘檸檬汁。']),
  recipe('steamed-halibut','薑蔥蒸比目魚與青江菜','台式','魚肉',20,'蒸烤爐','low',[['halibut',360],['bokchoy',300],['ginger',15],['scallion',20],['soy',15],['oil',5]],['比目魚放入蒸盤，鋪上薑絲，青江菜洗淨備用。','蒸烤爐以蒸氣模式蒸至魚肉全熟，青菜另盤蒸熟。','魚肉淋醬油與少許油，撒蔥絲，搭配青江菜。']),

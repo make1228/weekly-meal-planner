@@ -5,6 +5,7 @@ import * as engine from '../engine.js';
 import * as preferences from '../preferences.js';
 import * as weeks from '../weeks.js';
 import * as stores from '../stores.js';
+import * as cookingUI from '../cooking-ui.js';
 import {newGenerationId} from '../sync-model.js';
 
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
@@ -38,7 +39,7 @@ function harness(initial){
  class FixedDate extends Date{constructor(...args){super(...(args.length?args:[todayInstant]));}static now(){return Date.parse(todayInstant);}}
  let adapter;
  const installCloudSync=value=>{adapter=value;return {saveAccountDrafts:()=>false,noteDraftChange(){},refresh(){},async mutate(action){sharedWrites++;action();adapter.persist();adapter.refresh();}};};
- const bindings={...engine,...preferences,...weeks,...stores,newGenerationId,installCloudSync,document,localStorage,FormData,Date:FixedDate,window:{print(){}},navigator:{clipboard:{writeText:async()=>{}}},setTimeout:()=>0,clearTimeout(){}};
+ const bindings={...engine,...preferences,...weeks,...stores,...cookingUI,newGenerationId,installCloudSync,document,localStorage,FormData,Date:FixedDate,window:{print(){}},navigator:{clipboard:{writeText:async()=>{}}},setTimeout:()=>0,clearTimeout(){}};
  bindings.generatePlan=(...args)=>{generationCalls++;return engine.generatePlan(...args);};
  const run=new Function(...Object.keys(bindings),source+'\nreturn {validateState,fullState,getView:()=>structuredClone(state),getDraft:()=>structuredClone(draftSettings)};');
  const app=run(...Object.values(bindings));
@@ -135,4 +136,25 @@ test('an open page promotes the saved next week on Monday and removes expired st
  assert.equal(app.generationCalls,generations);assert.equal(app.adapter.retentionNeeded(app.fullState()),false);
  const stored=JSON.parse(app.storage.get('weekly-table-v1'));assert.equal(stored.plan.startDate,'2026-11-09');assert.equal(stored.plan.nextWeek.plan.startDate,'2026-11-16');assert.ok(!JSON.stringify(stored).includes('2026-11-02'));
  assert.match(app.e('#week-title').textContent,/本週菜單/);assert.equal(app.e('#prev-week').getAttribute('aria-pressed'),'true');
+});
+
+test('recipe catalog opens the full cooking guide without generating or changing saved weeks',async()=>{
+ const app=harness(),before=clone(app.fullState()),writes=app.sharedWrites;
+ await app.e('#catalog-list').emit('click',{target:{closest:()=>({dataset:{catalogRecipe:'chicken-salad'}})}});
+ const html=app.e('#recipe-content').innerHTML;
+ for(const label of ['溫雞胸毛豆沙拉','開始前先準備','完整作法','熟度怎麼判斷','成功關鍵與調整','74°C','尚未逐道實際試煮'])assert.ok(html.includes(label),label);
+ assert.equal(app.e('#recipe-dialog').open,true);
+ assert.deepEqual(app.fullState(),before);assert.equal(app.sharedWrites,writes);assert.equal(app.generationCalls,0);
+});
+test('full guide in the real app uses the same small adult/child amounts as its ingredient rows',async()=>{
+ const app=harness(saved('2026-11-02',{weekdayPeople:2,weekdayChildren:1,appetite:'small'}));
+ await app.e('#catalog-list').emit('click',{target:{closest:()=>({dataset:{catalogRecipe:'we-cheddar-chicken-pasta'}})}});
+ const html=app.e('#recipe-content').innerHTML;
+ assert.match(html,/2 大人＋1 小孩・小食量 70%/);
+ assert.match(html,/132.3 g/);
+ assert.match(html,/74°C/);assert.doesNotMatch(html,/\{\{|undefined|NaN/);
+ const stored=app.storage.get('weekly-table-v1');
+ const reloaded=harness(JSON.parse(stored));
+ await reloaded.e('#catalog-list').emit('click',{target:{closest:()=>({dataset:{catalogRecipe:'we-cheddar-chicken-pasta'}})}});
+ assert.equal(reloaded.e('#recipe-content').innerHTML,html);
 });
