@@ -321,6 +321,12 @@
 			path = "WeeklyMealPlanner/Info.plist";
 			sourceTree = "<group>";
 		};
+		C442E9310DAF667D42BF984E = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "text";
+			path = "WeeklyMealPlanner/Simulator.entitlements";
+			sourceTree = "<group>";
+		};
 		6ECE0EDA608A5D65843C1F58 = {
 			isa = "PBXFileReference";
 			lastKnownFileType = "text";
@@ -589,6 +595,7 @@
 				"35D7F601065676A54548E522",
 				"44CF5F901DBD81EBCE15D353",
 				"836FD5B975571E3334F31D9E",
+				"C442E9310DAF667D42BF984E",
 				"6ECE0EDA608A5D65843C1F58",
 				"2B46DD6ADDC4D0188AC9E15D",
 				"1ABA834A9A05B3FC8AF98B92",

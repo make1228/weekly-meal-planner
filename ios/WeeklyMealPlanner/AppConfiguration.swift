@@ -19,6 +19,7 @@ struct AppConfiguration {
             let options = FirebaseOptions(googleAppID: "1:1234567890:ios:0123456789abcdef01234567", gcmSenderID: "1234567890")
             options.apiKey = "demo-key"
             options.projectID = "demo-weekly-meal-public"
+            AppCheck.setAppCheckProviderFactory(EmulatorAppCheckFactory())
             FirebaseApp.configure(options: options)
             Auth.auth().useEmulator(withHost: host, port: 9099)
             let db = Firestore.firestore()
@@ -59,3 +60,19 @@ final class MealAppCheckFactory: NSObject, AppCheckProviderFactory {
         #endif
     }
 }
+
+#if DEBUG
+// Non-secret fixture token only for demo-project emulators. No token exchange
+// reaches real App Check; staging/release continue to use official providers.
+final class EmulatorAppCheckFactory: NSObject, AppCheckProviderFactory {
+    func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
+        guard app.options.projectID?.hasPrefix("demo-") == true else { return nil }
+        return EmulatorAppCheckProvider()
+    }
+}
+final class EmulatorAppCheckProvider: NSObject, AppCheckProvider {
+    func getToken(completion handler: @escaping (AppCheckToken?, Error?) -> Void) {
+        handler(AppCheckToken(token: "emulator", expirationDate: Date().addingTimeInterval(3600)), nil)
+    }
+}
+#endif

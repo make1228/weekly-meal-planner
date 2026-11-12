@@ -26,7 +26,7 @@ npm run dev
 CLI 可選本機已安裝的 Simulator：
 
 ```sh
-xcodebuild -project ios/WeeklyMealPlanner.xcodeproj -scheme WeeklyMealPlanner -destination 'platform=iOS Simulator,name=YOUR_INSTALLED_IPHONE' CODE_SIGNING_ALLOWED=NO test
+xcodebuild -project ios/WeeklyMealPlanner.xcodeproj -scheme WeeklyMealPlanner -destination 'platform=iOS Simulator,name=YOUR_INSTALLED_IPHONE' CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS=WeeklyMealPlanner/Simulator.entitlements test
 ```
 
 ## 獨立 staging、實機與 TestFlight
@@ -42,3 +42,5 @@ xcodebuild -project ios/WeeklyMealPlanner.xcodeproj -scheme WeeklyMealPlanner -d
 ## 尚需驗證
 
 真實Web↔iOS雙向、OAuth provider群組／隱藏Email、Google與Apple重新登入後相同UID、Apple取消／撤銷、App Check enforcement、Safari、iPad、實機、TestFlight與刪帳後雲端備份保存政策。不可把Auth emulator的虛構JWT測試當成真實OAuth通過。
+
+模擬器Auth會使用Keychain，因此整合測試必須使用本機ad-hoc簽署與Simulator.entitlements；完全停用簽署會造成FirebaseAuth的Keychain錯誤。這組entitlements只用在Simulator測試，不可用來簽署實機或App Store版本。

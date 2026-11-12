@@ -52,7 +52,7 @@ testFrameworks=add('test-frameworks','PBXFrameworksBuildPhase',buildActionMask=2
 appProduct=add('app-product','PBXFileReference',explicitFileType='wrapper.application',includeInIndex=0,path='WeeklyMealPlanner.app',sourceTree='BUILT_PRODUCTS_DIR')
 testProduct=add('test-product','PBXFileReference',explicitFileType='wrapper.cfbundle',includeInIndex=0,path='WeeklyMealPlannerTests.xctest',sourceTree='BUILT_PRODUCTS_DIR')
 productsGroup=add('products','PBXGroup',children=[appProduct,testProduct],name='Products',sourceTree='<group>')
-for p in [root/'WeeklyMealPlanner/Info.plist',root/'WeeklyMealPlanner/WeeklyMealPlanner.entitlements',root/'Local.example.xcconfig',root/'App.xcconfig']:file(p)
+for p in [root/'WeeklyMealPlanner/Info.plist',root/'WeeklyMealPlanner/Simulator.entitlements',root/'WeeklyMealPlanner/WeeklyMealPlanner.entitlements',root/'Local.example.xcconfig',root/'App.xcconfig']:file(p)
 configs={}
 baseProject={'CLANG_ENABLE_MODULES':'YES','IPHONEOS_DEPLOYMENT_TARGET':'17.0','SWIFT_VERSION':'5.0','SDKROOT':'iphoneos','ENABLE_USER_SCRIPT_SANDBOXING':'YES'}
 for target in ['project','app','test']:
