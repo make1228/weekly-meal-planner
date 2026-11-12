@@ -94,3 +94,8 @@ recipe-guides/ 保存逐道內容與共用技法。cooking-text.js 把明確食�
 完整版不改原有料理 ID、食材數量、時間上限、200 道數量或菜單格式；既有本週／下週菜單、已煮標記和雲端同步契約延用。
 
 驗證包含：全部 200 道內容與數量 token 檢查、成人／兒童／小食量換算、碎肉與整塊肉熟度、蒸蛋液體比例、每階段油脂分配、菜單保存回歸，以及桌面和手機版面人工檢視。
+
+
+## 公版 UID／原生 App 改造分支
+
+正式網站保持既有運作；公版測試需獨立環境。實作與操作文件：[架構決策](docs/PUBLIC_ARCHITECTURE.md)、[資料／API契約](docs/DATA_CONTRACT.md)、[測試／遷移／回復](docs/OPERATIONS.md)、[原生iOS與Mac步驟](ios/README.md)、[驗證紀錄](docs/VALIDATION.md)、[隱私與送審查核](docs/PRIVACY_RELEASE.md)。

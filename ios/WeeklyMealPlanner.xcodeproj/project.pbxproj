@@ -1,0 +1,650 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+		61AB25570E48EE030EE660C3 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlanner/AccountSession.swift";
+			sourceTree = "<group>";
+		};
+		3EADD71E6DC2420232F5E4BC = {
+			isa = "PBXBuildFile";
+			fileRef = "61AB25570E48EE030EE660C3";
+		};
+		2D79326E0AA4649344DA59BE = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlanner/AppConfiguration.swift";
+			sourceTree = "<group>";
+		};
+		3EF00A109563683E0C18454C = {
+			isa = "PBXBuildFile";
+			fileRef = "2D79326E0AA4649344DA59BE";
+		};
+		143FB1672862E44B9436E013 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlanner/Authentication.swift";
+			sourceTree = "<group>";
+		};
+		9DDDD031F0E2D7F382549AA8 = {
+			isa = "PBXBuildFile";
+			fileRef = "143FB1672862E44B9436E013";
+		};
+		CD195396DA8F8046ADC4CB6A = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlanner/Domain.swift";
+			sourceTree = "<group>";
+		};
+		F7453AD412F633D3D764DB0A = {
+			isa = "PBXBuildFile";
+			fileRef = "CD195396DA8F8046ADC4CB6A";
+		};
+		BC6F06DCB8F1F69364E65B50 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlanner/MealPlannerApp.swift";
+			sourceTree = "<group>";
+		};
+		45A17F9B8001DB7344A4AE35 = {
+			isa = "PBXBuildFile";
+			fileRef = "BC6F06DCB8F1F69364E65B50";
+		};
+		3633AF2F407D08989F901059 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlanner/PendingStore.swift";
+			sourceTree = "<group>";
+		};
+		39E0C5967764741CD6DB0FB3 = {
+			isa = "PBXBuildFile";
+			fileRef = "3633AF2F407D08989F901059";
+		};
+		F0E0A1C8CFCAC5C6D32E3353 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlanner/PlanningViews.swift";
+			sourceTree = "<group>";
+		};
+		2AC8BF62A1B8B06EFE957BA2 = {
+			isa = "PBXBuildFile";
+			fileRef = "F0E0A1C8CFCAC5C6D32E3353";
+		};
+		34804547F0A7482885F55B52 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlanner/RecipeViews.swift";
+			sourceTree = "<group>";
+		};
+		643CF51794093926C064FB4A = {
+			isa = "PBXBuildFile";
+			fileRef = "34804547F0A7482885F55B52";
+		};
+		D6C01E45A632C133DB30E8E8 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlanner/SettingsViews.swift";
+			sourceTree = "<group>";
+		};
+		70BAE1F3E9CF3AB096320666 = {
+			isa = "PBXBuildFile";
+			fileRef = "D6C01E45A632C133DB30E8E8";
+		};
+		AFF87A50730392B6633ACECE = {
+			isa = "PBXSourcesBuildPhase";
+			buildActionMask = 2147483647;
+			files = (
+				"3EADD71E6DC2420232F5E4BC",
+				"3EF00A109563683E0C18454C",
+				"9DDDD031F0E2D7F382549AA8",
+				"F7453AD412F633D3D764DB0A",
+				"45A17F9B8001DB7344A4AE35",
+				"39E0C5967764741CD6DB0FB3",
+				"2AC8BF62A1B8B06EFE957BA2",
+				"643CF51794093926C064FB4A",
+				"70BAE1F3E9CF3AB096320666",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E82A80C36EAFA81DEE28540 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "text.json";
+			path = "WeeklyMealPlanner/catalog.v2.json";
+			sourceTree = "<group>";
+		};
+		699889A2ABF45D6B81040ED5 = {
+			isa = "PBXBuildFile";
+			fileRef = "5E82A80C36EAFA81DEE28540";
+		};
+		BD63DA23DF2A3E4C51AF56FD = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "folder.assetcatalog";
+			path = "WeeklyMealPlanner/Assets.xcassets";
+			sourceTree = "<group>";
+		};
+		E0F9B90CFCC6C0CE68BCBE7F = {
+			isa = "PBXBuildFile";
+			fileRef = "BD63DA23DF2A3E4C51AF56FD";
+		};
+		9FD68917B2B790AC86A5A73A = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "text.xml";
+			path = "WeeklyMealPlanner/PrivacyInfo.xcprivacy";
+			sourceTree = "<group>";
+		};
+		2197AE5540ECB91C5227F228 = {
+			isa = "PBXBuildFile";
+			fileRef = "9FD68917B2B790AC86A5A73A";
+		};
+		F9187E824FE171A6F0EFAE28 = {
+			isa = "PBXResourcesBuildPhase";
+			buildActionMask = 2147483647;
+			files = (
+				"699889A2ABF45D6B81040ED5",
+				"E0F9B90CFCC6C0CE68BCBE7F",
+				"2197AE5540ECB91C5227F228",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6A7F981355584164B3776F56 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlannerTests/AccountIntegrationTests.swift";
+			sourceTree = "<group>";
+		};
+		0639CAFD3EE19D4A920DADE2 = {
+			isa = "PBXBuildFile";
+			fileRef = "6A7F981355584164B3776F56";
+		};
+		35D7F601065676A54548E522 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlannerTests/CookingTextTests.swift";
+			sourceTree = "<group>";
+		};
+		3FB0CEB3E85C342CE3717F8A = {
+			isa = "PBXBuildFile";
+			fileRef = "35D7F601065676A54548E522";
+		};
+		DEE94446A282611C16F7781C = {
+			isa = "PBXSourcesBuildPhase";
+			buildActionMask = 2147483647;
+			files = (
+				"0639CAFD3EE19D4A920DADE2",
+				"3FB0CEB3E85C342CE3717F8A",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		44CF5F901DBD81EBCE15D353 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "text.json";
+			path = "WeeklyMealPlannerTests/portion-vectors.json";
+			sourceTree = "<group>";
+		};
+		E9D368CBB63498FC136D9765 = {
+			isa = "PBXBuildFile";
+			fileRef = "44CF5F901DBD81EBCE15D353";
+		};
+		B07F54389EA4A93577936499 = {
+			isa = "PBXBuildFile";
+			fileRef = "5E82A80C36EAFA81DEE28540";
+		};
+		1F030AB36D1A3A4389CF71AE = {
+			isa = "PBXResourcesBuildPhase";
+			buildActionMask = 2147483647;
+			files = (
+				"E9D368CBB63498FC136D9765",
+				"B07F54389EA4A93577936499",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		08C69D915ADA7C557AABBFE1 = {
+			isa = "XCRemoteSwiftPackageReference";
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = "exactVersion";
+				version = "13.1.1";
+			};
+		};
+		342C4F23496CEB913620FB59 = {
+			isa = "XCRemoteSwiftPackageReference";
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS.git";
+			requirement = {
+				kind = "exactVersion";
+				version = "10.1.0";
+			};
+		};
+		86C5C56E997F0ABC047AF08A = {
+			isa = "XCSwiftPackageProductDependency";
+			package = "08C69D915ADA7C557AABBFE1";
+			productName = "FirebaseCore";
+		};
+		7F642F3A3F395D1D6444558D = {
+			isa = "PBXBuildFile";
+			productRef = "86C5C56E997F0ABC047AF08A";
+		};
+		0B40C9D05B73294529DC098B = {
+			isa = "XCSwiftPackageProductDependency";
+			package = "08C69D915ADA7C557AABBFE1";
+			productName = "FirebaseAuth";
+		};
+		784E945A65236D2F0F8024DB = {
+			isa = "PBXBuildFile";
+			productRef = "0B40C9D05B73294529DC098B";
+		};
+		0E7EC771BF74F15EEB1F5088 = {
+			isa = "XCSwiftPackageProductDependency";
+			package = "08C69D915ADA7C557AABBFE1";
+			productName = "FirebaseFirestore";
+		};
+		DB1F944FAE8286608010D65B = {
+			isa = "PBXBuildFile";
+			productRef = "0E7EC771BF74F15EEB1F5088";
+		};
+		4D5AB09F939E760A7FD3308D = {
+			isa = "XCSwiftPackageProductDependency";
+			package = "08C69D915ADA7C557AABBFE1";
+			productName = "FirebaseFunctions";
+		};
+		C03B62D70D3BF45E23F04AC7 = {
+			isa = "PBXBuildFile";
+			productRef = "4D5AB09F939E760A7FD3308D";
+		};
+		C60E727EAA7787D776F2BAD2 = {
+			isa = "XCSwiftPackageProductDependency";
+			package = "08C69D915ADA7C557AABBFE1";
+			productName = "FirebaseAppCheck";
+		};
+		32BFEEF07833EBB73981E2CC = {
+			isa = "PBXBuildFile";
+			productRef = "C60E727EAA7787D776F2BAD2";
+		};
+		F8D9553B38CC08D59707A0BC = {
+			isa = "XCSwiftPackageProductDependency";
+			package = "342C4F23496CEB913620FB59";
+			productName = "GoogleSignIn";
+		};
+		77B1E8DD54500F53EE24499D = {
+			isa = "PBXBuildFile";
+			productRef = "F8D9553B38CC08D59707A0BC";
+		};
+		E2AA269EB967A8853A258BFA = {
+			isa = "PBXFrameworksBuildPhase";
+			buildActionMask = 2147483647;
+			files = (
+				"7F642F3A3F395D1D6444558D",
+				"784E945A65236D2F0F8024DB",
+				"DB1F944FAE8286608010D65B",
+				"C03B62D70D3BF45E23F04AC7",
+				"32BFEEF07833EBB73981E2CC",
+				"77B1E8DD54500F53EE24499D",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B10CDED79664567B030B2B4F = {
+			isa = "PBXFrameworksBuildPhase";
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		681C948D238C526E9E3424E0 = {
+			isa = "PBXFileReference";
+			explicitFileType = "wrapper.application";
+			includeInIndex = 0;
+			path = "WeeklyMealPlanner.app";
+			sourceTree = "BUILT_PRODUCTS_DIR";
+		};
+		F739566ED5280322FF98A798 = {
+			isa = "PBXFileReference";
+			explicitFileType = "wrapper.cfbundle";
+			includeInIndex = 0;
+			path = "WeeklyMealPlannerTests.xctest";
+			sourceTree = "BUILT_PRODUCTS_DIR";
+		};
+		0A3E27B8CA818264D75C8D81 = {
+			isa = "PBXGroup";
+			children = (
+				"681C948D238C526E9E3424E0",
+				"F739566ED5280322FF98A798",
+			);
+			name = "Products";
+			sourceTree = "<group>";
+		};
+		836FD5B975571E3334F31D9E = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "text.plist.xml";
+			path = "WeeklyMealPlanner/Info.plist";
+			sourceTree = "<group>";
+		};
+		C442E9310DAF667D42BF984E = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "text";
+			path = "WeeklyMealPlanner/Simulator.entitlements";
+			sourceTree = "<group>";
+		};
+		6ECE0EDA608A5D65843C1F58 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "text";
+			path = "WeeklyMealPlanner/WeeklyMealPlanner.entitlements";
+			sourceTree = "<group>";
+		};
+		2B46DD6ADDC4D0188AC9E15D = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "text.xcconfig";
+			path = "Local.example.xcconfig";
+			sourceTree = "<group>";
+		};
+		1ABA834A9A05B3FC8AF98B92 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "text.xcconfig";
+			path = "App.xcconfig";
+			sourceTree = "<group>";
+		};
+		FDD3EA28A0B1309668A442B2 = {
+			isa = "XCBuildConfiguration";
+			buildSettings = {
+				CLANG_ENABLE_MODULES = "YES";
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				SWIFT_VERSION = "5.0";
+				SDKROOT = "iphoneos";
+				ENABLE_USER_SCRIPT_SANDBOXING = "YES";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				DEBUG_INFORMATION_FORMAT = "dwarf";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG";
+				ONLY_ACTIVE_ARCH = "YES";
+				ENABLE_TESTABILITY = "YES";
+			};
+			name = "Debug";
+		};
+		8DB23D5B0AA80A48AA651830 = {
+			isa = "XCBuildConfiguration";
+			buildSettings = {
+				CLANG_ENABLE_MODULES = "YES";
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				SWIFT_VERSION = "5.0";
+				SDKROOT = "iphoneos";
+				ENABLE_USER_SCRIPT_SANDBOXING = "YES";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				ONLY_ACTIVE_ARCH = "NO";
+				ENABLE_TESTABILITY = "NO";
+			};
+			name = "Release";
+		};
+		9F6B1A7BCFF26D263B843F95 = {
+			isa = "XCConfigurationList";
+			buildConfigurations = (
+				"FDD3EA28A0B1309668A442B2",
+				"8DB23D5B0AA80A48AA651830",
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "Release";
+		};
+		AB00255049ED0D95F2F0606D = {
+			isa = "XCBuildConfiguration";
+			buildSettings = {
+				CLANG_ENABLE_MODULES = "YES";
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				SWIFT_VERSION = "5.0";
+				SDKROOT = "iphoneos";
+				ENABLE_USER_SCRIPT_SANDBOXING = "YES";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				DEBUG_INFORMATION_FORMAT = "dwarf";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG";
+				ONLY_ACTIVE_ARCH = "YES";
+				ENABLE_TESTABILITY = "YES";
+				PRODUCT_NAME = "WeeklyMealPlanner";
+				INFOPLIST_FILE = "WeeklyMealPlanner/Info.plist";
+				CODE_SIGN_ENTITLEMENTS = "WeeklyMealPlanner/WeeklyMealPlanner.entitlements";
+				CODE_SIGN_STYLE = "Automatic";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon";
+				GENERATE_INFOPLIST_FILE = "NO";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "WeeklyMealPlanner/Simulator.entitlements";
+			};
+			name = "Debug";
+			baseConfigurationReference = "1ABA834A9A05B3FC8AF98B92";
+		};
+		D4A96B521F3D78469F32E0BE = {
+			isa = "XCBuildConfiguration";
+			buildSettings = {
+				CLANG_ENABLE_MODULES = "YES";
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				SWIFT_VERSION = "5.0";
+				SDKROOT = "iphoneos";
+				ENABLE_USER_SCRIPT_SANDBOXING = "YES";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				ONLY_ACTIVE_ARCH = "NO";
+				ENABLE_TESTABILITY = "NO";
+				PRODUCT_NAME = "WeeklyMealPlanner";
+				INFOPLIST_FILE = "WeeklyMealPlanner/Info.plist";
+				CODE_SIGN_ENTITLEMENTS = "WeeklyMealPlanner/WeeklyMealPlanner.entitlements";
+				CODE_SIGN_STYLE = "Automatic";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon";
+				GENERATE_INFOPLIST_FILE = "NO";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "WeeklyMealPlanner/Simulator.entitlements";
+			};
+			name = "Release";
+			baseConfigurationReference = "1ABA834A9A05B3FC8AF98B92";
+		};
+		5D32D499D7738AB763D0FB39 = {
+			isa = "XCConfigurationList";
+			buildConfigurations = (
+				"AB00255049ED0D95F2F0606D",
+				"D4A96B521F3D78469F32E0BE",
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "Release";
+		};
+		9F313328E3791CE2DA0AD49E = {
+			isa = "XCBuildConfiguration";
+			buildSettings = {
+				CLANG_ENABLE_MODULES = "YES";
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				SWIFT_VERSION = "5.0";
+				SDKROOT = "iphoneos";
+				ENABLE_USER_SCRIPT_SANDBOXING = "YES";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				DEBUG_INFORMATION_FORMAT = "dwarf";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG";
+				ONLY_ACTIVE_ARCH = "YES";
+				ENABLE_TESTABILITY = "YES";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.weeklymealplanner.tests";
+				GENERATE_INFOPLIST_FILE = "YES";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WeeklyMealPlanner.app/WeeklyMealPlanner";
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = "Automatic";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
+					"$(BUILT_PRODUCTS_DIR)/PackageFrameworks",
+				);
+				SWIFT_INCLUDE_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
+				);
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "WeeklyMealPlanner/Simulator.entitlements";
+			};
+			name = "Debug";
+		};
+		2EB1D08D920E42AFB68E8246 = {
+			isa = "XCBuildConfiguration";
+			buildSettings = {
+				CLANG_ENABLE_MODULES = "YES";
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				SWIFT_VERSION = "5.0";
+				SDKROOT = "iphoneos";
+				ENABLE_USER_SCRIPT_SANDBOXING = "YES";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				ONLY_ACTIVE_ARCH = "NO";
+				ENABLE_TESTABILITY = "NO";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.weeklymealplanner.tests";
+				GENERATE_INFOPLIST_FILE = "YES";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WeeklyMealPlanner.app/WeeklyMealPlanner";
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = "Automatic";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
+					"$(BUILT_PRODUCTS_DIR)/PackageFrameworks",
+				);
+				SWIFT_INCLUDE_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
+				);
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "WeeklyMealPlanner/Simulator.entitlements";
+			};
+			name = "Release";
+		};
+		5F0A1F9C6FEE4F423CA8D05D = {
+			isa = "XCConfigurationList";
+			buildConfigurations = (
+				"9F313328E3791CE2DA0AD49E",
+				"2EB1D08D920E42AFB68E8246",
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "Release";
+		};
+		DAB01D73CBBCF1FEDE84E2D6 = {
+			isa = "PBXContainerItemProxy";
+			containerPortal = "244210E48437B6556980A702";
+			proxyType = 1;
+			remoteGlobalIDString = "C1E9827DB735CA9BAA54A540";
+			remoteInfo = "WeeklyMealPlanner";
+		};
+		F9A94CEF8CF7D85CE881E703 = {
+			isa = "PBXTargetDependency";
+			target = "C1E9827DB735CA9BAA54A540";
+			targetProxy = "DAB01D73CBBCF1FEDE84E2D6";
+		};
+		C1E9827DB735CA9BAA54A540 = {
+			isa = "PBXNativeTarget";
+			buildConfigurationList = "5D32D499D7738AB763D0FB39";
+			buildPhases = (
+				"AFF87A50730392B6633ACECE",
+				"E2AA269EB967A8853A258BFA",
+				"F9187E824FE171A6F0EFAE28",
+			);
+			buildRules = ();
+			dependencies = ();
+			name = "WeeklyMealPlanner";
+			packageProductDependencies = (
+				"86C5C56E997F0ABC047AF08A",
+				"0B40C9D05B73294529DC098B",
+				"0E7EC771BF74F15EEB1F5088",
+				"4D5AB09F939E760A7FD3308D",
+				"C60E727EAA7787D776F2BAD2",
+				"F8D9553B38CC08D59707A0BC",
+			);
+			productName = "WeeklyMealPlanner";
+			productReference = "681C948D238C526E9E3424E0";
+			productType = "com.apple.product-type.application";
+		};
+		9805CBD60EB4F66728D5D195 = {
+			isa = "PBXNativeTarget";
+			buildConfigurationList = "5F0A1F9C6FEE4F423CA8D05D";
+			buildPhases = (
+				"DEE94446A282611C16F7781C",
+				"B10CDED79664567B030B2B4F",
+				"1F030AB36D1A3A4389CF71AE",
+			);
+			buildRules = ();
+			dependencies = (
+				"F9A94CEF8CF7D85CE881E703",
+			);
+			name = "WeeklyMealPlannerTests";
+			productName = "WeeklyMealPlannerTests";
+			productReference = "F739566ED5280322FF98A798";
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		19F479106CE8C3BA8C106518 = {
+			isa = "PBXGroup";
+			children = (
+				"61AB25570E48EE030EE660C3",
+				"2D79326E0AA4649344DA59BE",
+				"143FB1672862E44B9436E013",
+				"CD195396DA8F8046ADC4CB6A",
+				"BC6F06DCB8F1F69364E65B50",
+				"3633AF2F407D08989F901059",
+				"F0E0A1C8CFCAC5C6D32E3353",
+				"34804547F0A7482885F55B52",
+				"D6C01E45A632C133DB30E8E8",
+				"5E82A80C36EAFA81DEE28540",
+				"BD63DA23DF2A3E4C51AF56FD",
+				"9FD68917B2B790AC86A5A73A",
+				"6A7F981355584164B3776F56",
+				"35D7F601065676A54548E522",
+				"44CF5F901DBD81EBCE15D353",
+				"836FD5B975571E3334F31D9E",
+				"C442E9310DAF667D42BF984E",
+				"6ECE0EDA608A5D65843C1F58",
+				"2B46DD6ADDC4D0188AC9E15D",
+				"1ABA834A9A05B3FC8AF98B92",
+				"0A3E27B8CA818264D75C8D81",
+			);
+			sourceTree = "<group>";
+		};
+		244210E48437B6556980A702 = {
+			isa = "PBXProject";
+			attributes = {
+				BuildIndependentTargetsInParallel = "YES";
+				LastSwiftUpdateCheck = "2600";
+				LastUpgradeCheck = "2600";
+				TargetAttributes = {
+					C1E9827DB735CA9BAA54A540 = {
+						CreatedOnToolsVersion = "26.0";
+					};
+					9805CBD60EB4F66728D5D195 = {
+						CreatedOnToolsVersion = "26.0";
+						TestTargetID = "C1E9827DB735CA9BAA54A540";
+					};
+				};
+			};
+			buildConfigurationList = "9F6B1A7BCFF26D263B843F95";
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = "zh-Hant";
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				"zh-Hant",
+				"en",
+				"Base",
+			);
+			mainGroup = "19F479106CE8C3BA8C106518";
+			packageReferences = (
+				"08C69D915ADA7C557AABBFE1",
+				"342C4F23496CEB913620FB59",
+			);
+			productRefGroup = "0A3E27B8CA818264D75C8D81";
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				"C1E9827DB735CA9BAA54A540",
+				"9805CBD60EB4F66728D5D195",
+			);
+		};
+	};
+	rootObject = "244210E48437B6556980A702";
+}

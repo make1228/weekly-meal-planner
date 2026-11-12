@@ -1,0 +1,212 @@
+import {createHash} from 'node:crypto';
+import {applyMutation} from '../sync-model.js';
+import {emptyAccountSnapshot,validateAccountSnapshot,validateProfile,assertSafeJSON,retainAccountSnapshot,taipeiDate} from '../account/model.js';
+import {getReplacementOptions,aggregateShopping} from '../engine.js';
+import {viewWeek,weekWindow} from '../weeks.js';
+import {CATALOG_VERSION} from '../account/catalog-version.js';
+import {commandMutation} from '../account/commands.js';
+const clone=x=>structuredClone(x);
+const error=(code,message,details={})=>Object.assign(new Error(message),{code,details});
+function inputValidation(fn){try{return fn();}catch(e){if(e.code)throw e;throw error('invalid-argument',e.message||'輸入內容不正確。');}}
+const idPattern=/^[A-Za-z0-9_-]{8,100}$/;
+const accountPath=uid=>'mealPlannerUsers/'+uid;
+const bindingPath=uid=>'mealPlannerLegacyBindings/'+uid;
+const privatePath=uid=>accountPath(uid)+'/data/current';
+const allowedActions=new Set(['bootstrap','submit','command','profile','export','replace','deleteAccount','deletionStatus','options','shopping']);
+function canonical(value){return JSON.stringify(value);}
+function requireIdentity(context,now){
+ if(!context?.uid||typeof context.uid!=='string'||context.uid.includes('/'))throw error('unauthenticated','請先登入。');
+ if(!['google.com','apple.com'].includes(context.provider))throw error('permission-denied','請使用Google或Apple登入。');
+ if(!Number.isFinite(context.authTime)||context.authTime>now/1000+60)throw error('unauthenticated','登入資訊無效。');
+}
+function recent(context,now){if(now/1000-context.authTime>300)throw error('failed-precondition','請重新驗證登入後再操作。',{reason:'reauth-required'});}
+function allowedKeys(object,keys){if(!object||typeof object!=='object'||Array.isArray(object)||Object.keys(object).some(k=>!keys.includes(k)))throw error('invalid-argument','不允許的請求欄位。');}
+function verifyWindow(snapshot,today){
+ const kept=retainAccountSnapshot(snapshot,today);
+ if(kept.state.plan.startDate!==snapshot.state.plan.startDate||snapshot.state.plan.nextWeek?.plan.startDate!==kept.state.plan.nextWeek.plan.startDate)throw error('failed-precondition','週次已變更，請先重新載入。',{reason:'week-window'});
+}
+function result(record){return {catalogVersion:record.catalogVersion||CATALOG_VERSION,snapshot:record.snapshot,revision:record.revision,recentMutationIds:record.recentMutationIds||[],updatedAt:record.updatedAt?.toDate?.()?.toISOString?.()||null};}
+/** Actual transaction service used by Cloud Functions and emulator integration tests. */
+export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date()}){
+ async function cleanupWrite(action){
+  for(let attempt=0;;attempt++){
+   try{return await action();}catch(e){
+    if(attempt>=2||![1,4,10,13,14].includes(Number(e.code)))throw e;
+    // Only idempotent deletes/completion receipts use this helper. A commit
+    // followed by a lost acknowledgement is safe to repeat on the same path.
+    await new Promise(resolve=>setTimeout(resolve,100*(attempt+1)));
+   }
+  }
+ }
+ async function rateLimit(uid){
+  const now=clock().getTime(),ref=db.doc('mealPlannerRateLimits/'+uid),bucket=Math.floor(now/60000);
+  await db.runTransaction(async t=>{
+   const deletionJob=await t.get(db.doc('mealPlannerDeletionJobs/'+uid));
+   if(deletionJob.exists)throw error('failed-precondition',deletionJob.data().status==='completed'?'帳號已刪除。':'帳號正在刪除，請完成或重試刪除流程。',{reason:deletionJob.data().status==='completed'?'deleted':'deleting'});
+   const old=(await t.get(ref)).data(),count=old?.bucket===bucket?old.count+1:1;
+   if(count>120)throw error('resource-exhausted','操作太頻繁，請稍後重試。');
+   t.set(ref,{bucket,count,expiresAt:new Date(now+120000)});
+  });
+ }
+ async function resolve(t,uid){
+  const ref=db.doc(accountPath(uid)),accountSnap=await t.get(ref);
+  if(!accountSnap.exists||accountSnap.data().status!=='active')throw error('failed-precondition','帳號尚未準備好。');
+  const account=accountSnap.data(),binding=(await t.get(db.doc(bindingPath(uid)))).data();
+  const path=binding?.verified===true?'mealPlannerLegacyData/'+binding.sourceId:privatePath(uid);
+  if(account.dataPath!==path)throw error('permission-denied','帳號資料對應不正確。');
+  const dataRef=db.doc(path),dataSnap=await t.get(dataRef);
+  if(!dataSnap.exists)throw error('failed-precondition','菜單資料尚未建立。');
+  return {ref,account,dataRef,record:dataSnap.data(),legacy:binding?.verified===true};
+ }
+ async function bootstrap(uid){
+  const today=taipeiDate(clock());
+  return db.runTransaction(async t=>{
+   const ref=db.doc(accountPath(uid)),old=await t.get(ref),binding=(await t.get(db.doc(bindingPath(uid)))).data(),deletionJob=await t.get(db.doc('mealPlannerDeletionJobs/'+uid));
+   if(deletionJob.exists)throw error('failed-precondition','帳號刪除尚未完成，請查看進度並重試刪除。',{reason:'deleting'});
+   const path=binding?.verified===true?'mealPlannerLegacyData/'+binding.sourceId:privatePath(uid);
+   const dataRef=db.doc(path),data=await t.get(dataRef);
+   if(old.exists&&old.data().status!=='active')throw error('failed-precondition','帳號正在刪除，請完成或重試刪除流程。',{reason:'deleting'});
+   if(old.exists&&old.data().dataPath!==path)throw error('failed-precondition','資料遷移尚未完成。');
+   if(binding?.verified===true&&!data.exists)throw error('failed-precondition','舊資料相容對應尚未完成。');
+   const profile=old.exists?old.data().profile:{displayName:'',equipment:[]};
+   const account=old.exists?old.data():{schemaVersion:2,ownerUid:uid,status:'active',profile,profileRevision:1,dataPath:path,createdAt:serverTimestamp(),updatedAt:serverTimestamp()};
+   let record=data.exists?data.data():{schemaVersion:2,ownerUid:binding?.verified?'legacy:'+binding.sourceId:uid,catalogVersion:CATALOG_VERSION,snapshot:emptyAccountSnapshot(today),revision:1,recentMutationIds:[],updatedAt:serverTimestamp(),updatedBy:uid};
+   if(record.catalogVersion&&record.catalogVersion!==CATALOG_VERSION)throw error('failed-precondition','食譜版本需要升級，請先完成版本相容程序。');
+   const missingCatalog=!record.catalogVersion;
+   const retained=retainAccountSnapshot(record.snapshot,today);
+   validateAccountSnapshot(retained);
+   if(missingCatalog||canonical(record.snapshot)!==canonical(retained))record={...record,catalogVersion:CATALOG_VERSION,snapshot:retained,revision:record.revision+1,updatedAt:serverTimestamp(),updatedBy:uid};
+   if(!old.exists)t.set(ref,account);
+   if(!data.exists||record.revision!==data.data().revision)t.set(dataRef,record);
+   return {schemaVersion:2,profile,profileRevision:account.profileRevision,dataPath:path,legacyShared:!!binding?.verified,...result(record)};
+  });
+ }
+ async function submit(uid,mutation,replaceRequest=null){
+  inputValidation(()=>assertSafeJSON(mutation));allowedKeys(mutation,['version','id','baseRevision','settings','preferences','inventory','plan','checked','feedback','nextWeek','meals','context','planTimestamp','seedDelta']);
+  if(!idPattern.test(mutation.id||''))throw error('invalid-argument','操作識別碼不正確。');
+  const today=taipeiDate(clock());
+  return db.runTransaction(async t=>{
+   const {dataRef,record}=await resolve(t,uid);
+   if(record.catalogVersion&&record.catalogVersion!==CATALOG_VERSION)throw error('failed-precondition','請先升級食譜版本相容處理。');
+   if(record.recentMutationIds.includes(mutation.id))return result(record);
+   if(!Number.isInteger(mutation.baseRevision)||mutation.baseRevision<(record.minAcceptedRevision||1)||mutation.baseRevision>record.revision||record.revision-mutation.baseRevision>=128)throw error('failed-precondition','編輯版本已超過安全重試範圍。',{code:'sync/expired-mutation',latestSnapshot:record.snapshot,latestRevision:record.revision});
+   let snapshot;
+   if(replaceRequest){
+    if(record.revision!==mutation.baseRevision)throw error('aborted','雲端已更新，請重新預覽匯入內容。',{code:'sync/conflict',latestSnapshot:record.snapshot,latestRevision:record.revision});
+    snapshot=inputValidation(()=>validateAccountSnapshot(replaceRequest));
+   }else{
+    try{snapshot=validateAccountSnapshot(applyMutation(record.snapshot,mutation));}
+    catch(e){if(e.code==='sync/conflict')throw error('aborted','另一個裝置已修改相同內容。',{code:e.code,paths:e.paths,latestSnapshot:record.snapshot,latestRevision:record.revision});throw error('invalid-argument',e.message||'菜單操作不正確。');}
+   }
+   verifyWindow(snapshot,today);
+   const next={...record,snapshot,revision:record.revision+1,...(replaceRequest?{minAcceptedRevision:record.revision+1}:{}),recentMutationIds:[...record.recentMutationIds,mutation.id].slice(-128),updatedAt:serverTimestamp(),updatedBy:uid};
+   t.set(dataRef,next);return result(next);
+  });
+ }
+ async function deletion(uid){
+  const ref=db.doc(accountPath(uid)),job=db.doc('mealPlannerDeletionJobs/'+uid);
+  let step='prepare';
+  const a=await ref.get(),legacy=(await db.doc(bindingPath(uid)).get()).data(),previousJob=(await job.get()).data();
+  const legacySource=legacy?.verified===true?legacy.sourceId:previousJob?.sourceId;
+  if(a.exists){
+   await db.runTransaction(async t=>{
+    const current=await t.get(ref);
+    if(current.exists){t.update(ref,{status:'deleting',updatedAt:serverTimestamp()});t.set(job,{status:'deleting',step:'data',...(legacySource?{sourceId:legacySource}:{}),updatedAt:serverTimestamp()},{merge:true});}
+   });
+  }
+  try{
+   step='data';
+   // Remove private UID data. Never alter the original legacy project source.
+   // Remove the copied shared snapshot only after its last participant leaves.
+   // Schema v2 has exactly one private data document. Delete that known path
+   // idempotently; a recursive BulkWriter/query is unnecessary and can cancel
+   // while other clients are listening. Add future private paths explicitly
+   // alongside their schema migration and lifecycle tests.
+   await cleanupWrite(()=>db.doc(privatePath(uid)).delete());
+   step='binding';
+   await cleanupWrite(()=>db.doc(bindingPath(uid)).delete());
+   if(typeof legacySource==='string'&&!legacySource.includes('/')){
+    await db.runTransaction(async t=>{
+     const remaining=await t.get(db.collection('mealPlannerLegacyBindings').where('sourceId','==',legacySource).limit(1));
+     const shared=db.doc('mealPlannerLegacyData/'+legacySource),data=await t.get(shared);
+     if(remaining.empty)t.delete(shared);
+     else if(data.exists&&data.data().updatedBy===uid)t.update(shared,{updatedBy:'deleted-legacy-user'});
+    });
+   }
+   step='profile';
+   await cleanupWrite(()=>db.doc('mealPlannerRateLimits/'+uid).delete());
+   await cleanupWrite(()=>ref.delete());
+   step='auth';
+   await job.set({status:'deleting',step:'auth',updatedAt:serverTimestamp()},{merge:true});
+   try{await auth.revokeRefreshTokens(uid);await auth.deleteUser(uid);}catch(e){if(e.code!=='auth/user-not-found')throw e;}
+   step='cleanup';
+   // Keep a minimal barrier for requests that authenticated before deletion
+   // but reach their transaction afterwards. No profile/source/content stays.
+   await cleanupWrite(()=>job.set({status:'completed',step:'done',completedAt:serverTimestamp(),expiresAt:new Date(clock().getTime()+86400000)}));
+   return {status:'completed'};
+  }catch(e){
+   const errorCode=String(e.code||'internal');
+   console.warn(JSON.stringify({event:'meal-deletion-retry',step,errorCode}));
+   await job.set({status:'retryable',step,errorCode,updatedAt:serverTimestamp()},{merge:true});
+   throw error('unavailable','刪除尚未完成，可重新登入後重試。',{reason:'deletion-retry',step,errorCode});
+  }
+ }
+ return async function handle(input,context){
+  const now=clock().getTime();requireIdentity(context,now);
+  allowedKeys(input,['action','payload']);const {action,payload={}}=input;
+  if(!allowedActions.has(action))throw error('invalid-argument','不支援的帳號操作。');
+  inputValidation(()=>assertSafeJSON(payload,1500000));
+  // Callable token verification alone does not reject a previously issued token
+  // after an administrator disables/revokes the identity. Check lifecycle
+  // actions too, before any destructive work or private progress lookup.
+  let identity;
+  try{identity=await auth.getUser(context.uid);}catch(e){
+   if(e.code==='auth/user-not-found'){
+    if(action==='deletionStatus')return {status:'completed'};
+    throw error('unauthenticated','帳號已刪除，請重新登入。');
+   }
+   throw e;
+  }
+  if(identity.disabled||context.authTime<Math.floor(new Date(identity.tokensValidAfterTime||0).getTime()/1000))throw error('unauthenticated','登入權限已更新，請重新驗證。');
+  if(action==='deletionStatus'){
+   const j=await db.doc('mealPlannerDeletionJobs/'+context.uid).get(),a=await db.doc(accountPath(context.uid)).get();
+   return j.exists?{status:j.data().status,step:j.data().step}:{status:a.exists?'active':'completed'};
+  }
+  if(action==='deleteAccount'){
+   allowedKeys(payload,['confirmation']);recent(context,now);
+   if(payload.confirmation!=='DELETE_MY_ACCOUNT')throw error('invalid-argument','請確認要刪除帳號。');
+   return deletion(context.uid);
+  }
+  await rateLimit(context.uid);
+  if(action==='bootstrap'){allowedKeys(payload,[]);return bootstrap(context.uid);}
+  if(action==='profile'){
+   allowedKeys(payload,['profile','revision']);const profile=inputValidation(()=>validateProfile(payload.profile));
+   return db.runTransaction(async t=>{
+    const {ref,account}=await resolve(t,context.uid);
+    if(payload.revision!==account.profileRevision)throw error('aborted','帳號設定已在另一個裝置更新。',{reason:'profile-conflict'});
+    t.update(ref,{profile,profileRevision:account.profileRevision+1,updatedAt:serverTimestamp()});
+    return {profile,profileRevision:account.profileRevision+1};
+   });
+  }
+  if(action==='export'){
+   allowedKeys(payload,[]);const value=await db.runTransaction(t=>resolve(t,context.uid));
+   return {schemaVersion:2,exportedAt:clock().toISOString(),profile:value.account.profile,...result(value.record)};
+  }
+  if(action==='shopping'||action==='options'){
+   allowedKeys(payload,action==='shopping'?['week']:['week','mealKey']);
+   if(!weekWindow(taipeiDate(clock())).includes(payload.week))throw error('invalid-argument','只可查看本週與下一週。');
+   const value=await db.runTransaction(t=>resolve(t,context.uid)),view=viewWeek(value.record.snapshot.state,payload.week);
+   return action==='shopping'?{rows:aggregateShopping(view.plan,view.inventory),revision:value.record.revision}:{recipeIds:getReplacementOptions(view.plan,payload.mealKey,view.settings,view.inventory).map(r=>r.id),revision:value.record.revision};
+  }
+  if(action==='submit'){allowedKeys(payload,['mutation']);return submit(context.uid,payload.mutation);}
+  if(action==='command'){
+   allowedKeys(payload,['id','type','payload','baseSnapshot','baseRevision']);
+   return submit(context.uid,inputValidation(()=>commandMutation(payload,taipeiDate(clock()))));
+  }
+  if(action==='replace'){
+   allowedKeys(payload,['snapshot','baseRevision','id','confirmed']);recent(context,now);
+   if(payload.confirmed!==true)throw error('invalid-argument','請先預覽並確認匯入資料。');
+   return submit(context.uid,{id:payload.id,baseRevision:payload.baseRevision},payload.snapshot);
+  }
+ };
+}
