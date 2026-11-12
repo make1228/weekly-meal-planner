@@ -69,7 +69,12 @@ jobs:
           JS
       - name: Build native app and tests
         timeout-minutes: 12
-        run: xcodebuild -project ios/WeeklyMealPlanner.xcodeproj -scheme WeeklyMealPlanner -destination "platform=iOS Simulator,id=$MEAL_SIMULATOR" -derivedDataPath /tmp/meal-derived CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- MEAL_REQUIRE_INTEGRATION=YES build-for-testing
+        run: |
+          if ! xcodebuild -quiet -project ios/WeeklyMealPlanner.xcodeproj -scheme WeeklyMealPlanner -destination "platform=iOS Simulator,id=$MEAL_SIMULATOR" -derivedDataPath /tmp/meal-derived CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- MEAL_REQUIRE_INTEGRATION=YES build-for-testing > /tmp/meal-ios-build.log 2>&1; then
+            tail -n 100 /tmp/meal-ios-build.log
+            exit 1
+          fi
+          echo 'Native app and tests compiled successfully.'
       - name: Boot native test simulator
         timeout-minutes: 3
         run: |
