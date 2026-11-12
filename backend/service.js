@@ -130,6 +130,18 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
   allowedKeys(input,['action','payload']);const {action,payload={}}=input;
   if(!allowedActions.has(action))throw error('invalid-argument','不支援的帳號操作。');
   inputValidation(()=>assertSafeJSON(payload,1500000));
+  // Callable token verification alone does not reject a previously issued token
+  // after an administrator disables/revokes the identity. Check lifecycle
+  // actions too, before any destructive work or private progress lookup.
+  let identity;
+  try{identity=await auth.getUser(context.uid);}catch(e){
+   if(e.code==='auth/user-not-found'){
+    if(action==='deletionStatus')return {status:'completed'};
+    throw error('unauthenticated','帳號已刪除，請重新登入。');
+   }
+   throw e;
+  }
+  if(identity.disabled||context.authTime<Math.floor(new Date(identity.tokensValidAfterTime||0).getTime()/1000))throw error('unauthenticated','登入權限已更新，請重新驗證。');
   if(action==='deletionStatus'){
    const j=await db.doc('mealPlannerDeletionJobs/'+context.uid).get(),a=await db.doc(accountPath(context.uid)).get();
    return j.exists?{status:j.data().status,step:j.data().step}:{status:a.exists?'active':'completed'};
@@ -139,9 +151,6 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
    if(payload.confirmation!=='DELETE_MY_ACCOUNT')throw error('invalid-argument','請確認要刪除帳號。');
    return deletion(context.uid);
   }
-  let identity;
-  try{identity=await auth.getUser(context.uid);}catch(e){if(e.code==='auth/user-not-found')throw error('unauthenticated','帳號已刪除，請重新登入。');throw e;}
-  if(identity.disabled||context.authTime<Math.floor(new Date(identity.tokensValidAfterTime||0).getTime()/1000))throw error('unauthenticated','登入權限已更新，請重新驗證。');
   await rateLimit(context.uid);
   if(action==='bootstrap'){allowedKeys(payload,[]);return bootstrap(context.uid);}
   if(action==='profile'){

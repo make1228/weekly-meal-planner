@@ -158,6 +158,9 @@ test('disabled and deleted Auth identities cannot bootstrap with a previously is
  const a=await user('revoked');await a.call('bootstrap');
  await adminAuth(getAdminApp('account-admin-tests')).updateUser(a.uid,{disabled:true});
  await assert.rejects(a.call('bootstrap'),e=>e.code==='functions/unauthenticated');
+ await assert.rejects(a.call('deleteAccount',{confirmation:'DELETE_MY_ACCOUNT'}),e=>e.code==='functions/unauthenticated');
+ await assert.rejects(a.call('deletionStatus'),e=>e.code==='functions/unauthenticated');
+ assert.equal((await admin.doc('mealPlannerUsers/'+a.uid).get()).data().status,'active');
  await adminAuth(getAdminApp('account-admin-tests')).updateUser(a.uid,{disabled:false});
  await a.call('deleteAccount',{confirmation:'DELETE_MY_ACCOUNT'});
  await assert.rejects(a.call('bootstrap'),e=>e.code==='functions/unauthenticated');

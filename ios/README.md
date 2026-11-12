@@ -2,7 +2,7 @@
 
 `WeeklyMealPlanner.xcodeproj` 與共享 scheme 已納入版本控制，不需另裝 XcodeGen。iPhone／iPad，部署目標 iOS17。Firebase iOS SDK 13.1.1、GoogleSignIn 10.1.0 由 SPM 固定版本。包含登入、提供者綁定、菜單／多次換菜、完整食譜／份量、庫存／草稿、採買／通路列、設定、料理回饋、匯出／確認匯入、刪帳及重試。
 
-目前工作環境沒有 Xcode／Swift 編譯器，不能聲稱已在 iOS 模擬器或實機驗證。GitHub workflow 提供 macOS build/XCTest；結果以實際 CI 為準。真實 OAuth、簽章、App Attest、Apple撤銷、iPad／實機仍需下列步驟。
+此 Linux 工作環境沒有 Xcode／Swift 編譯器；已改用 GitHub macOS runner 的 Xcode26.6，實際成功編譯 App 與測試，並在 iPhone Simulator 通過200道食譜與9組份量的2項 XCTest。原生帳號整合測試仍待通過，不能把編譯成功當成完整同步驗收。真實 OAuth、實機簽章、App Attest、Apple撤銷、iPad／實機仍需下列步驟。
 
 ## Mac mini：先用虛構帳號驗證
 

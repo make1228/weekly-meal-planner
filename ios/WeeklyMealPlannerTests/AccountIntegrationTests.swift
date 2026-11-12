@@ -47,6 +47,8 @@ final class AccountIntegrationTests: XCTestCase {
         let first = AccountSession()
         defer { first.stop() }
         XCTAssertEqual(first.configuration?.emulator, true)
+        XCTAssertEqual(Firestore.firestore().settings.host, "127.0.0.1:8080")
+        XCTAssertFalse(Firestore.firestore().settings.isSSLEnabled, "The local Firestore emulator is plaintext; staging/release must keep TLS")
         let label = "ios-" + UUID().uuidString.lowercased()
         await first.emulatorSignIn(label)
         try await eventually("Native Auth/bootstrap did not become ready: " + first.message) { first.canEdit }

@@ -26,6 +26,9 @@ struct AppConfiguration {
             db.useEmulator(withHost: host, port: 8080)
             Firestore.enableLogging(true)
             let settings = db.settings
+            // Firebase 13.1.1 useEmulator changes the host only. This demo-only
+            // local endpoint speaks plaintext gRPC; real projects keep TLS.
+            settings.isSSLEnabled = false
             settings.cacheSettings = MemoryCacheSettings()
             db.settings = settings
             Functions.functions(region: "us-central1").useEmulator(withHost: host, port: 5001)
