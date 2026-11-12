@@ -39,6 +39,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
       - run: npm ci
       - run: npm run build:public && node scripts/prepare-ios.mjs && python3 scripts/generate-ios-project.py
       - name: Select an available iPhone simulator
@@ -51,5 +55,24 @@ jobs:
           if not phones: raise SystemExit('No iPhone simulator installed')
           print('MEAL_SIMULATOR='+phones[0]['udid'])
           PY
+      - name: Start isolated native integration backend
+        run: |
+          node scripts/dev-proxy.mjs > /tmp/meal-ios-emulators.log 2>&1 &
+          echo $! > /tmp/meal-ios-proxy.pid
+          node --input-type=module <<'JS'
+          let ready=false;
+          for(let n=0;n<90;n++){
+            try{const r=await fetch('http://127.0.0.1:4173/health');if((await r.json()).emulatorsReady){ready=true;break;}}catch{}
+            await new Promise(r=>setTimeout(r,500));
+          }
+          if(!ready)throw new Error('Native integration backend did not start');
+          JS
       - name: Build and test native app
-        run: xcodebuild -project ios/WeeklyMealPlanner.xcodeproj -scheme WeeklyMealPlanner -destination "platform=iOS Simulator,id=$MEAL_SIMULATOR" -derivedDataPath /tmp/meal-derived CODE_SIGNING_ALLOWED=NO test
+        run: xcodebuild -project ios/WeeklyMealPlanner.xcodeproj -scheme WeeklyMealPlanner -destination "platform=iOS Simulator,id=$MEAL_SIMULATOR" -derivedDataPath /tmp/meal-derived CODE_SIGNING_ALLOWED=NO MEAL_REQUIRE_INTEGRATION=YES test
+      - name: Stop native integration backend
+        if: always()
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          if(fs.existsSync('/tmp/meal-ios-proxy.pid')){try{process.kill(Number(fs.readFileSync('/tmp/meal-ios-proxy.pid','utf8')),'SIGTERM');}catch{}}
+          JS

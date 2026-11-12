@@ -151,6 +151,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6A7F981355584164B3776F56 = {
+			isa = "PBXFileReference";
+			lastKnownFileType = "sourcecode.swift";
+			path = "WeeklyMealPlannerTests/AccountIntegrationTests.swift";
+			sourceTree = "<group>";
+		};
+		0639CAFD3EE19D4A920DADE2 = {
+			isa = "PBXBuildFile";
+			fileRef = "6A7F981355584164B3776F56";
+		};
 		35D7F601065676A54548E522 = {
 			isa = "PBXFileReference";
 			lastKnownFileType = "sourcecode.swift";
@@ -165,6 +175,7 @@
 			isa = "PBXSourcesBuildPhase";
 			buildActionMask = 2147483647;
 			files = (
+				"0639CAFD3EE19D4A920DADE2",
 				"3FB0CEB3E85C342CE3717F8A",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -595,6 +606,7 @@
 				"5E82A80C36EAFA81DEE28540",
 				"BD63DA23DF2A3E4C51AF56FD",
 				"9FD68917B2B790AC86A5A73A",
+				"6A7F981355584164B3776F56",
 				"35D7F601065676A54548E522",
 				"44CF5F901DBD81EBCE15D353",
 				"836FD5B975571E3334F31D9E",

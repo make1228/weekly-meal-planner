@@ -92,18 +92,27 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
  }
  async function deletion(uid){
   const ref=db.doc(accountPath(uid)),job=db.doc('mealPlannerDeletionJobs/'+uid);
-  const a=await ref.get();
+  const a=await ref.get(),legacy=(await db.doc(bindingPath(uid)).get()).data(),previousJob=(await job.get()).data();
+  const legacySource=legacy?.verified===true?legacy.sourceId:previousJob?.sourceId;
   if(a.exists){
    await db.runTransaction(async t=>{
     const current=await t.get(ref);
-    if(current.exists){t.update(ref,{status:'deleting',updatedAt:serverTimestamp()});t.set(job,{status:'deleting',step:'data',updatedAt:serverTimestamp()},{merge:true});}
+    if(current.exists){t.update(ref,{status:'deleting',updatedAt:serverTimestamp()});t.set(job,{status:'deleting',step:'data',...(legacySource?{sourceId:legacySource}:{}),updatedAt:serverTimestamp()},{merge:true});}
    });
   }
   try{
-   // Only this UID's private subtree is removed. A migrated shared source and
-   // the original legacy project documents are never deleted here.
+   // Remove private UID data. Never alter the original legacy project source.
+   // Remove the copied shared snapshot only after its last participant leaves.
    await db.recursiveDelete(db.collection(accountPath(uid)+'/data'));
    await db.doc(bindingPath(uid)).delete();
+   if(typeof legacySource==='string'&&!legacySource.includes('/')){
+    await db.runTransaction(async t=>{
+     const remaining=await t.get(db.collection('mealPlannerLegacyBindings').where('sourceId','==',legacySource).limit(1));
+     const shared=db.doc('mealPlannerLegacyData/'+legacySource),data=await t.get(shared);
+     if(remaining.empty)t.delete(shared);
+     else if(data.exists&&data.data().updatedBy===uid)t.update(shared,{updatedBy:'deleted-legacy-user'});
+    });
+   }
    await db.doc('mealPlannerRateLimits/'+uid).delete();
    await ref.delete();
    await job.set({status:'deleting',step:'auth',updatedAt:serverTimestamp()},{merge:true});

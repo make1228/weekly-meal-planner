@@ -46,7 +46,14 @@ node scripts/migrate-legacy.mjs --source-project nora-after-hours --backup /priv
 
 產品環境切換前，先從**管理端**匯出這兩個使用者的 Auth UID、provider subject、必要身分 metadata；核對目標中沒有同 UID 或 provider 衝突，以 Firebase Admin `importUsers` 保留 UID 和 providerData。原共用專案不刪帳、不撤銷其他產品 token。OAuth provider 設定、Apple跨專案subject群組與 refresh token 不能假設可複用；本次舊來源僅 Google，遷移後重新登入核對 UID。禁止以新的 Email 登入結果猜測舊 UID 或自動指向舊資料。
 
-Auth 身分轉移尚未在真實專案執行；先以 staging 專用帳號演練。資料遷移腳本要求目標兩個原 UID 已存在，且來源 hash 與核准備份一致：
+Auth 身分轉移尚未在真實專案執行。可用只讀預覽與明確apply的腳本，僅接受核實Google-only舊身分，按UID與provider subject檢查衝突，保留原UID，部分失敗重跑會跳過已正確匯入者，不刪來源：
+
+```sh
+node scripts/transfer-legacy-auth.mjs --target-project DEDICATED_STAGING --approved-backup /private/path/before.private.json
+node scripts/transfer-legacy-auth.mjs --target-project DEDICATED_STAGING --approved-backup /private/path/before.private.json --apply
+```
+
+先以 staging 專用帳號演練。資料遷移腳本要求目標兩個原 UID 已存在，且來源 hash 與核准備份一致：
 
 ```sh
 node scripts/migrate-legacy.mjs --source-project nora-after-hours --backup /private/path/recheck.private.json --target-project DEDICATED_STAGING --approved-plan /private/path/before.private.json --apply

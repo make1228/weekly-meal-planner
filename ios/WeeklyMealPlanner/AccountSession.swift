@@ -71,6 +71,12 @@ final class AccountSession: ObservableObject {
             }
         }
     }
+    func stop() {
+        timer?.cancel(); preferenceTimer?.cancel(); network.cancel()
+        dataListener?.remove(); profileListener?.remove()
+        if let authListener { Auth.auth().removeStateDidChangeListener(authListener) }
+        authListener = nil; generation += 1
+    }
     private func changedUser(_ user: User?) async {
         generation += 1
         dataListener?.remove(); profileListener?.remove(); preferenceTimer?.cancel()
@@ -122,8 +128,14 @@ final class AccountSession: ObservableObject {
     private func apply(_ record: [String: Any]) {
         guard let value = record["snapshot"] as? [String: Any], let nextRevision = record["revision"] as? Int, nextRevision >= revision else { return }
         catalogVersion = record["catalogVersion"] as? String ?? catalogVersion
-        snapshot = value; revision = nextRevision; phase = "已同步"; serverReady = true
+        snapshot = value; revision = nextRevision; phase = settledPhase(); serverReady = true
         persistConfirmed()
+    }
+    private func settledPhase() -> String {
+        if preferencesBlocked { return "設定衝突，待確認" }
+        if hasPending { return "儲存結果待確認" }
+        if stagedPreferences != nil { return "設定待同步" }
+        return "已同步"
     }
     private func persistConfirmed() {
         guard let key = pendingKey, let snapshot else { return }
@@ -205,6 +217,7 @@ final class AccountSession: ObservableObject {
                 preferenceOrigin = ["snapshot": snapshot, "revision": revision]
                 persistPreferences()
             }
+            phase = settledPhase()
         } catch {
             guard token == generation else { return }
             let e = error as NSError
@@ -250,6 +263,7 @@ final class AccountSession: ObservableObject {
         if preferencesBlocked { preferenceOrigin = nil; preferencesBlocked = false }
         if preferenceOrigin == nil, let snapshot { preferenceOrigin = ["snapshot": snapshot, "revision": revision, "catalogVersion": catalogVersion] }
         stagedPreferences = draft
+        phase = "設定待同步"
         persistPreferences()
         preferenceTimer?.cancel()
         preferenceTimer = Task { [weak self] in
@@ -318,7 +332,7 @@ final class AccountSession: ObservableObject {
         guard token == generation, uid == user.uid else { throw URLError(.cancelled) }
         _ = try await user.reauthenticate(with: credential)
         guard token == generation, uid == user.uid else { throw URLError(.cancelled) }
-        _ = try await user.getIDTokenForcingRefresh(true)
+        _ = try await user.getIDToken(forcingRefresh: true)
         guard token == generation, uid == user.uid else { throw URLError(.cancelled) }
         return code
     }
@@ -379,6 +393,9 @@ final class AccountSession: ObservableObject {
     private func show(_ error: Error) {
         let e = error as NSError
         message = e.localizedDescription
+        if e.domain == FunctionsErrorDomain, [FunctionsErrorCode.unauthenticated.rawValue, FunctionsErrorCode.permissionDenied.rawValue].contains(e.code) {
+            serverReady = false; snapshot = nil; shopping = [:]; phase = "請重新登入"
+        }
         if e.domain == NSURLErrorDomain { serverReady = false; phase = "目前離線或連線未完成" }
     }
 }

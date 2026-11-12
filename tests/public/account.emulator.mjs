@@ -9,6 +9,7 @@ import {initializeApp as adminApp,getApp as getAdminApp} from 'firebase-admin/ap
 import {getFirestore as adminStore} from 'firebase-admin/firestore';
 import {getAuth as adminAuth} from 'firebase-admin/auth';
 import {prepareLegacyMigration,applyLegacyMigration,rollbackLegacyMigration} from '../../backend/migration.js';
+import {copyLegacyAuth} from '../../backend/auth-migration.js';
 import {createAccountService} from '../../backend/service.js';
 import {initializeTestEnvironment,assertFails,assertSucceeds} from '@firebase/rules-unit-testing';
 import {commandMutation} from '../../account/commands.js';
@@ -133,6 +134,9 @@ test('legacy two-UID mapping stays shared; deleting one account preserves the ot
  assert.equal((await admin.doc('mealPlannerLegacyBindings/'+a.uid).get()).exists,false);
  assert.equal((await admin.doc('mealHomes/weekly-table/data/current').get()).data().proof,'original source is retained');
  assert.deepEqual((await b.call('bootstrap')).snapshot,changed.snapshot);
+ await b.call('deleteAccount',{confirmation:'DELETE_MY_ACCOUNT'});
+ assert.equal((await admin.doc('mealPlannerLegacyData/test-source').get()).exists,false);
+ assert.equal((await admin.doc('mealHomes/weekly-table/data/current').get()).data().proof,'original source is retained');
 });
 
 test('shopping and replacement APIs use the shared engine and preserve actual inventory through cooked toggles',async()=>{
@@ -179,6 +183,7 @@ test('interrupted account deletion records retry progress and rerun completes wi
  const service=createAccountService({db:admin,auth:{getUser:uid=>adminAuth(getAdminApp('account-admin-tests')).getUser(uid),revokeRefreshTokens:uid=>adminAuth(getAdminApp('account-admin-tests')).revokeRefreshTokens(uid),deleteUser:async uid=>{if(fail){fail=false;throw Object.assign(new Error('synthetic interruption'),{code:'auth/internal-error'});}return adminAuth(getAdminApp('account-admin-tests')).deleteUser(uid);}},serverTimestamp:()=>new Date()});
  const context={uid:a.uid,provider:'google.com',authTime:Math.floor(Date.now()/1000)};
  await assert.rejects(service({action:'deleteAccount',payload:{confirmation:'DELETE_MY_ACCOUNT'}},context),e=>e.details.reason==='deletion-retry');
+ context.authTime=Math.floor(Date.now()/1000); // simulate the required fresh reauthentication after revocation
  assert.equal((await service({action:'deletionStatus'},context)).status,'retryable');
  await assert.rejects(service({action:'bootstrap'},context),e=>e.details.reason==='deleting');
  assert.equal((await service({action:'deleteAccount',payload:{confirmation:'DELETE_MY_ACCOUNT'}},context)).status,'completed');
@@ -194,4 +199,17 @@ test('equal email across Google and Apple does not implicitly merge product acco
  assert.notEqual(b.auth.currentUser.uid,a.uid);
  const first=await a.call('bootstrap'),second=await b.call('bootstrap');
  assert.notEqual(first.dataPath,second.dataPath);
+});
+
+test('administrative Auth copy preserves verified Google UIDs, can rerun and never alters source users',async()=>{
+ const a=await user('auth-copy-a'),b=await user('auth-copy-b'),source=adminAuth(getAdminApp('account-admin-tests'));
+ const identities=(await Promise.all([source.getUser(a.uid),source.getUser(b.uid)])).map(u=>({...u,email:u.email||u.providerData[0].email,emailVerified:true}));
+ for(const u of identities)await source.updateUser(u.uid,{email:u.email,emailVerified:true});
+ const target=adminAuth(adminApp({projectId:'demo-meal-auth-transfer'},'auth-copy-target'));
+ const plan={accounts:identities.map(x=>({uid:x.uid}))};
+ const preview=await copyLegacyAuth({source,target,plan,identities});assert.equal(preview.plannedImports,2);
+ await assert.rejects(target.getUser(a.uid),e=>e.code==='auth/user-not-found');
+ const applied=await copyLegacyAuth({source,target,plan,identities,apply:true});assert.equal(applied.targetImports,2);
+ assert.equal((await target.getUser(a.uid)).uid,a.uid);assert.equal((await source.getUser(a.uid)).uid,a.uid);
+ assert.equal((await copyLegacyAuth({source,target,plan,identities,apply:true})).status,'already-imported');
 });

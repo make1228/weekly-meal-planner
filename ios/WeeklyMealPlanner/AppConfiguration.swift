@@ -10,7 +10,9 @@ struct AppConfiguration {
     let projectID: String
     let catalogURL: URL
     let baseURL: URL
-    static func configure() throws -> AppConfiguration {
+    @MainActor private static var cached: AppConfiguration?
+    @MainActor static func configure() throws -> AppConfiguration {
+        if let cached { return cached }
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--emulator") {
             let host = ProcessInfo.processInfo.environment["MEAL_EMULATOR_HOST"] ?? "127.0.0.1"
@@ -27,7 +29,8 @@ struct AppConfiguration {
             db.settings = settings
             Functions.functions(region: "us-central1").useEmulator(withHost: host, port: 5001)
             let base = URL(string: "http://" + host + ":4173/")!
-            return .init(emulator: true, projectID: "demo-weekly-meal-public", catalogURL: base.appendingPathComponent("catalog.v2.json"), baseURL: base)
+            let value = AppConfiguration(emulator: true, projectID: "demo-weekly-meal-public", catalogURL: base.appendingPathComponent("catalog.v2.json"), baseURL: base)
+            cached = value; return value
         }
         #endif
         guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
@@ -43,7 +46,8 @@ struct AppConfiguration {
         let settings = db.settings
         settings.cacheSettings = MemoryCacheSettings()
         db.settings = settings
-        return .init(emulator: false, projectID: project, catalogURL: base.appendingPathComponent("catalog.v2.json"), baseURL: base)
+        let value = AppConfiguration(emulator: false, projectID: project, catalogURL: base.appendingPathComponent("catalog.v2.json"), baseURL: base)
+        cached = value; return value
     }
 }
 final class MealAppCheckFactory: NSObject, AppCheckProviderFactory {
