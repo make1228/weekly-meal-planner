@@ -1,0 +1,22 @@
+# 實際驗證紀錄
+
+基線 main：12f05832debf5fea5c0acbf58cbc1526822499ba。測試只使用 demo-weekly-meal-public 的虛構 Google/Apple 身分，沒有破壞正式帳號或資料。
+
+## 已完成
+
+- 原版 Node 回歸 222項通過（含200道完整食譜、四種風格各50、份量、兩週、換菜、已煮與商店列）。改造後再次執行 `npm test`，222/222通過。
+- Auth/Firestore官方emulator + 實際callable HTTP backend通過，細項見 `tests/public/account.emulator.mjs`。執行 `npm run test:public`，28/28通過；含舊Rules與新增API、遷移、撤權、同Email隔離案例。
+- Chrome桌面實際UI：新UID空白設定、A產生14餐、切下週仍空白、切回本週14道完全不變、單餐替換、已煮扣採買、設備設定保存、換B無A菜單與設備、切回A及reload恢復14餐和已煮狀態。
+- 實際帳號匯出下載為schemaVersion2／14餐／正確測試profile；匿名本機資料先預覽，確認勾選前不能匯入，沒有自動覆蓋雲端。
+- 完整食譜有備料、步驟、熟度、提醒、AI／未逐道試煮標示；好市多／全聯各一列，品牌型號只屬使用者設定，不出現在新帳號預設設備。
+
+## 尚未完成／不能混稱通過
+
+- 未取得Firebase管理連線，沒有真實Auth盤點／私人備份，也沒有雲端staging部署網址。模擬器遷移不等於正式遷移。
+- 此Linux環境無Xcode／Swift。已提供原生專案、Mac步驟及macOS CI；iOS實際build／XCTest以CI結果或Mac結果為準。
+- 真實Google／AppleOAuth、Apple隱藏Email群組設定、Apple授權撤銷、AppCheck enforced、Web↔真實iOS雙向與關閉重開、Safari、375px、平板、iPhone/iPad實機、TestFlight尚未驗證。
+- 沒有公開新正式服務、修改現行正式網域、啟用收費或合併main。
+
+測試指令、環境差異與回復程序分別見 OPERATIONS、ios/README。僅在取得具體證據後才將待驗證項改成通過。
+
+UI證據：[菜單與帳號](evidence/web-account-menu.jpg)、[完整食譜及通路列](evidence/web-recipe.jpg)。僅虛構測試資料。

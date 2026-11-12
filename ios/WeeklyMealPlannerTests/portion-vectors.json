@@ -1,0 +1,125 @@
+[
+  {
+    "recipeId": "chicken-salad",
+    "meal": {
+      "key": "vector",
+      "date": "2026-11-12",
+      "slot": "lunch",
+      "recipeId": "chicken-salad",
+      "servings": 2
+    },
+    "text": "{{breast}}；{{water:150}}；180°C，8～12分鐘，比例1.5",
+    "expected": "320 g；150 ml；180°C，8～12分鐘，比例1.5"
+  },
+  {
+    "recipeId": "chicken-salad",
+    "meal": {
+      "key": "vector",
+      "date": "2026-11-12",
+      "slot": "lunch",
+      "recipeId": "chicken-salad",
+      "servings": 2.7,
+      "adults": 2,
+      "children": 1,
+      "portionFactor": 0.7
+    },
+    "text": "{{breast}}；{{water:150}}；180°C，8～12分鐘，比例1.5",
+    "expected": "302.4 g；141.75 ml；180°C，8～12分鐘，比例1.5"
+  },
+  {
+    "recipeId": "chicken-salad",
+    "meal": {
+      "key": "vector",
+      "date": "2026-11-12",
+      "slot": "lunch",
+      "recipeId": "chicken-salad",
+      "servings": 0.7,
+      "adults": 0,
+      "children": 1
+    },
+    "text": "{{breast}}；{{water:150}}；180°C，8～12分鐘，比例1.5",
+    "expected": "112 g；52.5 ml；180°C，8～12分鐘，比例1.5"
+  },
+  {
+    "recipeId": "pasta-shrimp",
+    "meal": {
+      "key": "vector",
+      "date": "2026-11-12",
+      "slot": "lunch",
+      "recipeId": "pasta-shrimp",
+      "servings": 2
+    },
+    "text": "{{pasta}}；{{water:150}}；180°C，8～12分鐘，比例1.5",
+    "expected": "140 g；150 ml；180°C，8～12分鐘，比例1.5"
+  },
+  {
+    "recipeId": "pasta-shrimp",
+    "meal": {
+      "key": "vector",
+      "date": "2026-11-12",
+      "slot": "lunch",
+      "recipeId": "pasta-shrimp",
+      "servings": 2.7,
+      "adults": 2,
+      "children": 1,
+      "portionFactor": 0.7
+    },
+    "text": "{{pasta}}；{{water:150}}；180°C，8～12分鐘，比例1.5",
+    "expected": "132.3 g；141.75 ml；180°C，8～12分鐘，比例1.5"
+  },
+  {
+    "recipeId": "pasta-shrimp",
+    "meal": {
+      "key": "vector",
+      "date": "2026-11-12",
+      "slot": "lunch",
+      "recipeId": "pasta-shrimp",
+      "servings": 0.7,
+      "adults": 0,
+      "children": 1
+    },
+    "text": "{{pasta}}；{{water:150}}；180°C，8～12分鐘，比例1.5",
+    "expected": "49 g；52.5 ml；180°C，8～12分鐘，比例1.5"
+  },
+  {
+    "recipeId": "we-cheddar-chicken-pasta",
+    "meal": {
+      "key": "vector",
+      "date": "2026-11-12",
+      "slot": "lunch",
+      "recipeId": "we-cheddar-chicken-pasta",
+      "servings": 2
+    },
+    "text": "{{pasta}}；{{water:150}}；180°C，8～12分鐘，比例1.5",
+    "expected": "140 g；150 ml；180°C，8～12分鐘，比例1.5"
+  },
+  {
+    "recipeId": "we-cheddar-chicken-pasta",
+    "meal": {
+      "key": "vector",
+      "date": "2026-11-12",
+      "slot": "lunch",
+      "recipeId": "we-cheddar-chicken-pasta",
+      "servings": 2.7,
+      "adults": 2,
+      "children": 1,
+      "portionFactor": 0.7
+    },
+    "text": "{{pasta}}；{{water:150}}；180°C，8～12分鐘，比例1.5",
+    "expected": "132.3 g；141.75 ml；180°C，8～12分鐘，比例1.5"
+  },
+  {
+    "recipeId": "we-cheddar-chicken-pasta",
+    "meal": {
+      "key": "vector",
+      "date": "2026-11-12",
+      "slot": "lunch",
+      "recipeId": "we-cheddar-chicken-pasta",
+      "servings": 0.7,
+      "adults": 0,
+      "children": 1
+    },
+    "text": "{{pasta}}；{{water:150}}；180°C，8～12分鐘，比例1.5",
+    "expected": "49 g；52.5 ml；180°C，8～12分鐘，比例1.5"
+  }
+]

@@ -5,6 +5,10 @@ import * as engine from '../engine.js';
 import * as preferences from '../preferences.js';
 import * as weeks from '../weeks.js';
 import * as stores from '../stores.js';
+import {accountConfig} from '../account/config.js';
+import {publicDefaults} from '../account/model.js';
+import {profileEquipment,renderUserEquipment} from '../account/equipment.js';
+import {validateState} from '../state-validation.js';
 import * as cookingUI from '../cooking-ui.js';
 import {newGenerationId} from '../sync-model.js';
 
@@ -39,7 +43,7 @@ function harness(initial){
  class FixedDate extends Date{constructor(...args){super(...(args.length?args:[todayInstant]));}static now(){return Date.parse(todayInstant);}}
  let adapter;
  const installCloudSync=value=>{adapter=value;return {saveAccountDrafts:()=>false,noteDraftChange(){},refresh(){},async mutate(action){sharedWrites++;action();adapter.persist();adapter.refresh();}};};
- const bindings={...engine,...preferences,...weeks,...stores,...cookingUI,newGenerationId,installCloudSync,document,localStorage,FormData,Date:FixedDate,window:{print(){}},navigator:{clipboard:{writeText:async()=>{}}},setTimeout:()=>0,clearTimeout(){}};
+ const bindings={accountConfig,publicDefaults,profileEquipment,renderUserEquipment,validateState,...engine,...preferences,...weeks,...stores,...cookingUI,newGenerationId,installCloudSync,document,localStorage,FormData,Date:FixedDate,window:{print(){}},navigator:{clipboard:{writeText:async()=>{}}},setTimeout:()=>0,clearTimeout(){}};
  bindings.generatePlan=(...args)=>{generationCalls++;return engine.generatePlan(...args);};
  const run=new Function(...Object.keys(bindings),source+'\nreturn {validateState,fullState,getView:()=>structuredClone(state),getDraft:()=>structuredClone(draftSettings)};');
  const app=run(...Object.values(bindings));

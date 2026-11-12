@@ -119,3 +119,19 @@
 #recipe-dialog .recipe-source{font-size:11px;color:#697661;line-height:1.9}
 .recipe-source a{color:var(--green);text-underline-offset:2px}
 @media(max-width:700px){#recipe-dialog .recipe-columns{grid-template-columns:minmax(0,1fr);gap:20px}#recipe-dialog{padding:26px 18px}#recipe-dialog .recipe-dialog-meta{flex-wrap:wrap;gap:6px 12px}}
+
+#account-dialog{max-width:580px}
+#account-dialog h3{margin:20px 0 8px;font-size:14px}
+#account-dialog p{font-size:12px;line-height:1.8;margin:9px 0;color:#52624b}
+#account-dialog fieldset{border:1px solid var(--line);border-radius:8px;padding:12px;margin:12px 0}
+.account-tool{display:grid;grid-template-columns:20px 90px minmax(0,1fr);align-items:center;gap:7px;margin:8px 0}
+.account-tool input[type=checkbox],.account-consent input{width:auto}
+.account-tool input[type=text]{font-size:12px;padding:7px}
+.account-consent{display:flex;align-items:flex-start;gap:7px;font-size:12px;line-height:1.8;margin:12px 0}
+.account-consent input{margin-top:5px;flex:none}
+.account-buttons{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+#account-dialog details{border-top:1px solid var(--line);padding:14px 0}
+#account-dialog details summary{cursor:pointer;font-size:13px}
+#account-message{padding:8px;border-radius:6px;background:var(--sage)}
+#account-import-preview{font-size:12px;padding:12px;background:var(--sage);border-radius:8px}
+@media(max-width:400px){#account-dialog{padding:26px 18px}.account-tool{grid-template-columns:18px 72px minmax(0,1fr)}}

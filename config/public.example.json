@@ -1,0 +1,12 @@
+{
+  "mode":"public",
+  "environment":"staging",
+  "region":"us-central1",
+  "appCheckSiteKey":"REPLACE_WITH_RECAPTCHA_ENTERPRISE_SITE_KEY",
+  "firebase":{
+    "projectId":"REPLACE_WITH_DEDICATED_STAGING_PROJECT",
+    "apiKey":"REPLACE_WITH_PUBLIC_FIREBASE_WEB_API_KEY",
+    "authDomain":"REPLACE_WITH_AUTHORIZED_FIREBASE_DOMAIN",
+    "appId":"REPLACE_WITH_PUBLIC_WEB_APP_ID"
+  }
+}

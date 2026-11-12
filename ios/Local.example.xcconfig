@@ -1,0 +1,8 @@
+// Copy to Local.xcconfig and select your personal Developer Team in Xcode.
+// This file contains public application identifiers only, never Apple private keys.
+DEVELOPMENT_TEAM = REPLACE_WITH_YOUR_TEAM
+PRODUCT_BUNDLE_IDENTIFIER = com.example.weeklymealplanner
+REVERSED_CLIENT_ID = REPLACE_FROM_GOOGLE_SERVICE_INFO
+MEAL_PUBLIC_HOST = REPLACE_WITH_VERIFIED_PRODUCT_HOST
+// Xcode xcconfig treats // as a comment; split the URL using an empty variable.
+MEAL_PUBLIC_BASE_URL = https:/$()/REPLACE_WITH_VERIFIED_PRODUCT_HOST/

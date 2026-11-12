@@ -33,7 +33,7 @@ function isRingCutSquid(offer){
  return /透抽圈|切圈|輪切/.test(notes)&&!/(?:非|不是|未)切圈/.test(notes);
 }
 
-function preparationMessage(offer,recipes){
+export function preparationMessage(offer,recipes){
  const wholeSquidRequired=costcoRecipeWarning(offer.ingredientId,recipes);
  if(wholeSquidRequired&&(offer.retailerId==='costco'||isRingCutSquid(offer)))return {warning:wholeSquidRequired,badgeSuffix:'規格不同'};
  if(wholeSquidRequired&&offer.retailerId==='pxmart'&&/未明示|確認.*完整筒身/.test(String(offer.notes||''))){

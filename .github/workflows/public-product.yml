@@ -1,0 +1,49 @@
+name: Public product validation
+on:
+  push:
+    branches: [public/uid-cross-platform]
+  pull_request:
+    paths: ['account/**', 'backend/**', 'ios/**', 'scripts/**', 'tests/**', '*.js', 'package*.json', 'firestore.public.rules']
+permissions:
+  contents: read
+jobs:
+  web-and-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:public
+      - run: npm run test:public
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:public && node scripts/prepare-ios.mjs && python3 scripts/generate-ios-project.py
+      - name: Select an available iPhone simulator
+        run: |
+          xcrun simctl list devices available --json > /tmp/meal-simulators.json
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json
+          data=json.load(open('/tmp/meal-simulators.json'))
+          phones=[d for devices in data['devices'].values() for d in devices if d['isAvailable'] and 'iPhone' in d['name']]
+          if not phones: raise SystemExit('No iPhone simulator installed')
+          print('MEAL_SIMULATOR='+phones[0]['udid'])
+          PY
+      - name: Build and test native app
+        run: xcodebuild -project ios/WeeklyMealPlanner.xcodeproj -scheme WeeklyMealPlanner -destination "platform=iOS Simulator,id=$MEAL_SIMULATOR" -derivedDataPath /tmp/meal-derived CODE_SIGNING_ALLOWED=NO test
