@@ -5,7 +5,7 @@
 | 路徑 | 內容 | 客戶端權限 |
 | --- | --- | --- |
 | `mealPlannerUsers/{uid}` | schemaVersion、不可變 ownerUid/dataPath、status、profile、profileRevision、時間戳 | 自己且 active 可 get；不能 list/write |
-| `mealPlannerUsers/{uid}/data/current` | schemaVersion、ownerUid、revision、snapshot、recentMutationIds、updatedAt/By | 自己且 active 可 get；不能 list/write |
+| `mealPlannerUsers/{uid}/data/current` | schemaVersion、catalogVersion、ownerUid、revision、snapshot、recentMutationIds、updatedAt/By | 自己且 active 可 get；不能 list/write |
 | `mealPlannerLegacyBindings/{uid}` | 管理端核實的 verified/sourceId/migrationId | 不能讀寫 |
 | `mealPlannerLegacyData/{sourceId}` | 舊兩人共用副本，與私人 state 相同外層格式 | 只有 active 且有核實對應的 UID 可 get；不能 list/write |
 | `mealPlannerRateLimits/{uid}` | 分鐘 bucket、count、expiresAt | 不能讀寫 |
@@ -42,4 +42,4 @@ preferences 11 欄：weekdayPeople、weekdayChildren、weekendPeople、weekendCh
 
 ## 相容與未來版本
 
-目前食譜基線被建置 digest 固定，versioned catalog 在 `/catalog/2026-11-12-full-200.json`，`catalog.v2.json` 為現用別名。後續 recipeVersion 更新先增加舊版本解析與回歸，再遷移或讓菜單保留舊版；此輪不是將既有 recipeId 重新編號。商品參考與食譜分離，各保留 checkedAt、未知價、秤重、售完、替代規格／整尾透抽提醒。包裝價不等於本餐成本。
+每份canonical record／匯出都保存catalogVersion；客戶端與後端遇到不支援版本會停止修改，避免用新用量重新解讀舊菜單。目前食譜基線被建置 digest 固定，versioned catalog 在 `/catalog/2026-11-12-full-200.json`，`catalog.v2.json` 為現用別名。後續 recipeVersion 更新先增加舊版本解析與回歸，再遷移或讓菜單保留舊版；此輪不是將既有 recipeId 重新編號。商品參考與食譜分離，各保留 checkedAt、未知價、秤重、售完、替代規格／整尾透抽提醒。包裝價不等於本餐成本。

@@ -1,3 +1,4 @@
+import {CATALOG_VERSION} from '../account/catalog-version.js';
 import {createHash} from 'node:crypto';
 import {validateAccountSnapshot,retainAccountSnapshot,validateProfile} from '../account/model.js';
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,stable(value[k])])):value;
@@ -34,7 +35,7 @@ export async function applyLegacyMigration(db,plan,{timestamp=()=>new Date()}={}
    throw new Error('遷移狀態不完整，需先檢查目標備份。');
   }
   if(reads.some(x=>x.profile.exists||x.binding.exists))throw new Error('目標帳號已存在，禁止覆蓋。');
-  t.set(dataRef,{schemaVersion:2,ownerUid:'legacy:'+plan.sourceId,migrationId:plan.id,sourceHash:plan.sourceHash,snapshot:plan.snapshot,revision:1,recentMutationIds:plan.recentMutationIds,updatedAt:timestamp(),updatedBy:'migration'});
+  t.set(dataRef,{schemaVersion:2,ownerUid:'legacy:'+plan.sourceId,catalogVersion:CATALOG_VERSION,migrationId:plan.id,sourceHash:plan.sourceHash,snapshot:plan.snapshot,revision:1,recentMutationIds:plan.recentMutationIds,updatedAt:timestamp(),updatedBy:'migration'});
   for(const {a,profileRef,bindingRef} of reads){
    t.set(profileRef,{schemaVersion:2,ownerUid:a.uid,status:'active',profile:a.profile,profileRevision:1,dataPath:dataRef.path,migrationId:plan.id,createdAt:timestamp(),updatedAt:timestamp()});
    t.set(bindingRef,{verified:true,sourceId:plan.sourceId,migrationId:plan.id});

@@ -14,6 +14,7 @@ final class AccountSession: ObservableObject {
     @Published var profileRevision = 0
     @Published var revision = 0
     @Published var catalog: Catalog?
+    @Published var catalogVersion = ""
     @Published var shopping: [String: [ShoppingRow]] = [:]
     @Published var message = ""
     @Published var phase = "尚未登入"
@@ -36,7 +37,7 @@ final class AccountSession: ObservableObject {
     private let network = NWPathMonitor()
     let identity = IdentityFlow()
 
-    var canEdit: Bool { uid != nil && snapshot != nil && online && serverReady && !busy && !hasPending }
+    var canEdit: Bool { uid != nil && snapshot != nil && online && serverReady && !busy && !hasPending && (catalogVersion.isEmpty || catalogVersion == catalog?.version) }
     var weeks: [String] {
         guard let state = snapshot?["state"] as? [String: Any], let plan = state["plan"] as? [String: Any] else { return [] }
         var values = [plan["startDate"] as? String].compactMap { $0 }
@@ -73,7 +74,7 @@ final class AccountSession: ObservableObject {
     private func changedUser(_ user: User?) async {
         generation += 1
         dataListener?.remove(); profileListener?.remove(); preferenceTimer?.cancel()
-        snapshot = nil; profile = UserProfile(); profileRevision = 0; revision = 0
+        snapshot = nil; catalogVersion = ""; profile = UserProfile(); profileRevision = 0; revision = 0
         shopping = [:]; pendingNeedsReview = false; preferencesBlocked = false; stagedPreferences = nil; preferenceOrigin = nil; message = ""; busy = false
         uid = user?.uid; serverReady = false
         hasPending = pendingKey.flatMap { PendingStore.read(key: $0) } != nil
@@ -81,6 +82,7 @@ final class AccountSession: ObservableObject {
         phase = "正在同步"
         if let key = pendingKey, let cached = PendingStore.read(key: "confirmed:" + key) {
             snapshot = cached["snapshot"] as? [String: Any]
+            catalogVersion = cached["catalogVersion"] as? String ?? ""
             revision = cached["revision"] as? Int ?? 0
             if let raw = cached["profile"], let value = try? decode(UserProfile.self, from: raw) { profile = value }
             if let raw = cached["shopping"], let value = try? decode([String: [ShoppingRow]].self, from: raw) { shopping = value }
@@ -119,12 +121,13 @@ final class AccountSession: ObservableObject {
     }
     private func apply(_ record: [String: Any]) {
         guard let value = record["snapshot"] as? [String: Any], let nextRevision = record["revision"] as? Int, nextRevision >= revision else { return }
+        catalogVersion = record["catalogVersion"] as? String ?? catalogVersion
         snapshot = value; revision = nextRevision; phase = "已同步"; serverReady = true
         persistConfirmed()
     }
     private func persistConfirmed() {
         guard let key = pendingKey, let snapshot else { return }
-        var value: [String: Any] = ["snapshot": snapshot, "revision": revision]
+        var value: [String: Any] = ["snapshot": snapshot, "revision": revision, "catalogVersion": catalogVersion]
         value["profile"] = try? JSONSerialization.jsonObject(with: JSONEncoder().encode(profile))
         value["shopping"] = try? JSONSerialization.jsonObject(with: JSONEncoder().encode(shopping))
         try? PendingStore.write(value, key: "confirmed:" + key)
@@ -172,6 +175,10 @@ final class AccountSession: ObservableObject {
     func checked(_ ingredientID: String, week: String) -> Bool { (menu(week: week)?["checked"] as? [String: Any])?[ingredientID] as? Bool == true }
 
     func command(_ type: String, payload: [String: Any] = [:]) async {
+        if type == "generate", stagedPreferences != nil {
+            await syncPreferences()
+            guard stagedPreferences == nil else { message = "請先完成設定同步或處理設定衝突，再產生菜單。"; return }
+        }
         guard canEdit, let snapshot, let key = pendingKey else { return }
         let operation: [String: Any] = ["type": type, "payload": payload, "baseSnapshot": snapshot, "baseRevision": revision, "id": UUID().uuidString]
         do {
@@ -188,6 +195,16 @@ final class AccountSession: ObservableObject {
             let result = try await rpc("command", operation)
             guard token == generation else { return }
             apply(result); try PendingStore.write(nil, key: key); hasPending = false; message = ""
+            if operation["type"] as? String == "preferences",
+               let sent = (operation["payload"] as? [String: Any])?["preferences"] as? [String: Any],
+               let draft = stagedPreferences,
+               (try? JSONSerialization.data(withJSONObject: sent, options: [.sortedKeys])) == (try? JSONSerialization.data(withJSONObject: draft, options: [.sortedKeys])) {
+                stagedPreferences = nil; preferenceOrigin = nil
+                try? PendingStore.write(nil, key: "preferences:" + key)
+            } else if operation["type"] as? String == "preferences", stagedPreferences != nil, let snapshot {
+                preferenceOrigin = ["snapshot": snapshot, "revision": revision]
+                persistPreferences()
+            }
         } catch {
             guard token == generation else { return }
             let e = error as NSError
@@ -231,7 +248,7 @@ final class AccountSession: ObservableObject {
     func schedulePreferences(_ draft: [String: Any]) {
         guard snapshot != nil else { return }
         if preferencesBlocked { preferenceOrigin = nil; preferencesBlocked = false }
-        if preferenceOrigin == nil, let snapshot { preferenceOrigin = ["snapshot": snapshot, "revision": revision] }
+        if preferenceOrigin == nil, let snapshot { preferenceOrigin = ["snapshot": snapshot, "revision": revision, "catalogVersion": catalogVersion] }
         stagedPreferences = draft
         persistPreferences()
         preferenceTimer?.cancel()
@@ -257,7 +274,7 @@ final class AccountSession: ObservableObject {
         let operation: [String: Any] = ["type": "preferences", "payload": ["preferences": draft], "baseSnapshot": origin["snapshot"] ?? [:], "baseRevision": origin["revision"] ?? revision, "id": UUID().uuidString]
         do { try PendingStore.write(operation, key: key); hasPending = true; await send(operation) }
         catch { show(error) }
-        if !hasPending && message.isEmpty { stagedPreferences = nil; preferenceOrigin = nil; try? PendingStore.write(nil, key: "preferences:" + key) }
+
     }
     private func automaticSync() async {
         guard uid != nil, online, !busy else { return }
@@ -330,6 +347,7 @@ final class AccountSession: ObservableObject {
         busy = true; defer { if token == generation { busy = false } }
         do {
             guard let raw = try JSONSerialization.jsonObject(with: data) as? [String: Any], let candidate = raw["snapshot"] as? [String: Any] else { throw URLError(.cannotParseResponse) }
+            if let incomingVersion = raw["catalogVersion"] as? String, incomingVersion != catalogVersion { throw URLError(.cannotParseResponse) }
             let base = expectedRevision
             _ = try await reauthenticate()
             guard token == generation else { throw URLError(.cancelled) }

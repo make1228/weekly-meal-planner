@@ -1,3 +1,4 @@
+import {CATALOG_VERSION} from './catalog-version.js';
 import {validateAccountSnapshot,validateProfile} from './model.js';
 export const SDK_VERSION='13.3.0';
 const fail=(code,message)=>Object.assign(new Error(message),{code});
@@ -55,9 +56,10 @@ export async function createAccountSync({config,applyMutation,validateSnapshot=v
  }
  function publishRecord(record,s){
   if(!active(s)||!record||record.revision<(latest?.revision||0))return;
+  if(record.catalogVersion&&record.catalogVersion!==CATALOG_VERSION){clear();onHome(null);notify('error',{message:'食譜庫版本已更新，請重新載入或更新App後再使用。'});return false;}
   validateSnapshot(record.snapshot);latest=record;
   onData(record.snapshot,{revision:record.revision,recentMutationIds:record.recentMutationIds||[],fromCache:false,hasPendingWrites:false});
-  notify('synced',{revision:record.revision});
+  notify('synced',{revision:record.revision});return true;
  }
  function publicUser(value){return value?{uid:value.uid,email:value.email||value.providerData.find(p=>p.email)?.email||'',displayName:value.displayName||'',providers:value.providerData.map(p=>p.providerId)}:null;}
  function emitHome(info={}){if(user)onHome({ownerUid:user.uid,ownerEmail:user.email||'',partnerEmail:'',isOwner:true,profile,profileRevision,...info});}
@@ -71,7 +73,7 @@ export async function createAccountSync({config,applyMutation,validateSnapshot=v
    const data=await call('bootstrap');
    if(!active(s))return;
    profile=data.profile;profileRevision=data.profileRevision;emitHome({legacyShared:data.legacyShared});
-   publishRecord(data,s);
+   if(!publishRecord(data,s))return;
    unsubProfile=sdk.onSnapshot(sdk.doc(db,'mealPlannerUsers/'+s.uid),{includeMetadataChanges:true},snap=>{
     if(!active(s)||snap.metadata.fromCache||snap.metadata.hasPendingWrites||!snap.exists())return;
     const account=snap.data();if(account.status!=='active'){clear();onHome(null);notify('error',{message:'帳號正在刪除。'});return;}
@@ -88,7 +90,7 @@ export async function createAccountSync({config,applyMutation,validateSnapshot=v
   available:true,
   async signIn(id='google.com'){return sdk.signInWithPopup(auth,provider(id));},
   async signOut(){generation++;clear();user=null;onAuth(null);onHome(null);notify('signed-out');return sdk.signOut(auth);},
-  async submit(mutation){const s=session();notify('saving');const data=await call('submit',{mutation});publishRecord(data,s);return data;},
+  async submit(mutation){const s=session();notify('saving');const data=await call('submit',{mutation});if(!publishRecord(data,s))throw fail('sync/catalog-version','請重新載入食譜庫後再使用。');return data;},
   async initialize(){throw fail('sync/already-initialized','帳號已自動建立空白菜單，匯入前請先預覽。');},
   async saveProfile(value,expectedRevision=profileRevision){const s=session();const data=await call('profile',{profile:validateProfile(value),revision:expectedRevision});if(!active(s))throw fail('sync/signed-out','登入帳號已變更。');profile=data.profile;profileRevision=data.profileRevision;emitHome();return data;},
   async linkProvider(id,consent){

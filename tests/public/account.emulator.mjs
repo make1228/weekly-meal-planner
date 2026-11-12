@@ -37,7 +37,7 @@ test('new real Auth users receive neutral independent snapshots and cannot set t
  const a=await user('neutral'),b=await user('independent'),ra=await a.call('bootstrap'),rb=await b.call('bootstrap');
  assert.notEqual(a.uid,b.uid);assert.notEqual(ra.dataPath,rb.dataPath);
  assert.deepEqual(ra.snapshot.state.settings.avoid,[]);assert.deepEqual(ra.profile.equipment,[]);assert.equal(meals(ra).length,0);
- assert.equal(rb.revision,1);
+ assert.equal(rb.revision,1);assert.equal(ra.catalogVersion,'2026-11-12-full-200');
  await assert.rejects(a.call('bootstrap',{uid:b.uid}),/不允許/);
  const changed=await a.call('command',operation(ra,'inventoryAdd',{ingredientId:'breast',quantity:50}));
  assert.equal(changed.snapshot.state.inventory[0].quantity,50);

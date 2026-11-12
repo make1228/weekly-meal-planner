@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {build} from 'esbuild';
+import {CATALOG_VERSION} from '../account/catalog-version.js';
 import {RECIPES,INGREDIENTS} from '../engine.js';
 import {getIngredientOffers,storePriceLabel,preparationMessage} from '../stores.js';
 import {recipeDoneness} from '../cooking-text.js';
@@ -10,7 +11,7 @@ await fs.mkdir(dest,{recursive:true});
 const files=await fs.readdir(root,{withFileTypes:true});
 for(const file of files)if(file.isFile()&&/\.(js|css|html)$/.test(file.name))await fs.copyFile(path.join(root,file.name),path.join(dest,file.name));
 for(const dir of ['account','recipe-guides'])await fs.cp(path.join(root,dir),path.join(dest,dir),{recursive:true});
-const catalog={schemaVersion:2,version:'2026-11-12-full-200',ingredients:INGREDIENTS,recipes:RECIPES.map(r=>({...r,doneness:recipeDoneness(r)})),offers:INGREDIENTS.flatMap(i=>getIngredientOffers(i.id).map(o=>({...o,priceLabel:storePriceLabel(o),recipeWarnings:Object.fromEntries(RECIPES.map(r=>[r.id,preparationMessage(o,[r]).warning]).filter(([,warning])=>warning))})))};
+const catalog={schemaVersion:2,version:CATALOG_VERSION,ingredients:INGREDIENTS,recipes:RECIPES.map(r=>({...r,doneness:recipeDoneness(r)})),offers:INGREDIENTS.flatMap(i=>getIngredientOffers(i.id).map(o=>({...o,priceLabel:storePriceLabel(o),recipeWarnings:Object.fromEntries(RECIPES.map(r=>[r.id,preparationMessage(o,[r]).warning]).filter(([,warning])=>warning))})))};
 const json=JSON.stringify(catalog);catalog.sha256=createHash('sha256').update(json).digest('hex');
 await fs.writeFile(path.join(dest,'catalog.v2.json'),JSON.stringify(catalog));
 const manifest=JSON.parse(await fs.readFile(path.join(root,'config/catalog-manifest.json'),'utf8'));

@@ -1,3 +1,4 @@
+import {CATALOG_VERSION} from './catalog-version.js';
 import {EQUIPMENT,validateProfile,validateAccountSnapshot,retainAccountSnapshot} from './model.js';
 import {createSharedSnapshot,validSharedPreferences,newGenerationId} from '../sync-model.js';
 import {settingsToDraft} from '../preferences.js';
@@ -70,6 +71,7 @@ export function installPublicControls({getClient,getSession,getPersonal,setBusy,
   a.href=url;a.download='weekly-meal-account-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message('已匯出帳號設定、菜單、偏好與庫存。');
  }));
  function prepare(raw){
+  if(raw.catalogVersion&&raw.catalogVersion!==CATALOG_VERSION)throw new Error('此備份使用其他食譜版本，請先升級並完成版本相容處理。');
   let snapshot=raw.snapshot;
   if(!snapshot){
    const {version,settings,inventory,plan,checked}=raw.state||raw;

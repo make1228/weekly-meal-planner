@@ -3,6 +3,7 @@ import {applyMutation} from '../sync-model.js';
 import {emptyAccountSnapshot,validateAccountSnapshot,validateProfile,assertSafeJSON,retainAccountSnapshot,taipeiDate} from '../account/model.js';
 import {getReplacementOptions,aggregateShopping} from '../engine.js';
 import {viewWeek,weekWindow} from '../weeks.js';
+import {CATALOG_VERSION} from '../account/catalog-version.js';
 import {commandMutation} from '../account/commands.js';
 const clone=x=>structuredClone(x);
 const error=(code,message,details={})=>Object.assign(new Error(message),{code,details});
@@ -23,7 +24,7 @@ function verifyWindow(snapshot,today){
  const kept=retainAccountSnapshot(snapshot,today);
  if(kept.state.plan.startDate!==snapshot.state.plan.startDate||snapshot.state.plan.nextWeek?.plan.startDate!==kept.state.plan.nextWeek.plan.startDate)throw error('failed-precondition','週次已變更，請先重新載入。',{reason:'week-window'});
 }
-function result(record){return {snapshot:record.snapshot,revision:record.revision,recentMutationIds:record.recentMutationIds||[],updatedAt:record.updatedAt?.toDate?.()?.toISOString?.()||null};}
+function result(record){return {catalogVersion:record.catalogVersion||CATALOG_VERSION,snapshot:record.snapshot,revision:record.revision,recentMutationIds:record.recentMutationIds||[],updatedAt:record.updatedAt?.toDate?.()?.toISOString?.()||null};}
 /** Actual transaction service used by Cloud Functions and emulator integration tests. */
 export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date()}){
  async function rateLimit(uid){
@@ -56,10 +57,12 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
    if(binding?.verified===true&&!data.exists)throw error('failed-precondition','舊資料相容對應尚未完成。');
    const profile=old.exists?old.data().profile:{displayName:'',equipment:[]};
    const account=old.exists?old.data():{schemaVersion:2,ownerUid:uid,status:'active',profile,profileRevision:1,dataPath:path,createdAt:serverTimestamp(),updatedAt:serverTimestamp()};
-   let record=data.exists?data.data():{schemaVersion:2,ownerUid:binding?.verified?'legacy:'+binding.sourceId:uid,snapshot:emptyAccountSnapshot(today),revision:1,recentMutationIds:[],updatedAt:serverTimestamp(),updatedBy:uid};
+   let record=data.exists?data.data():{schemaVersion:2,ownerUid:binding?.verified?'legacy:'+binding.sourceId:uid,catalogVersion:CATALOG_VERSION,snapshot:emptyAccountSnapshot(today),revision:1,recentMutationIds:[],updatedAt:serverTimestamp(),updatedBy:uid};
+   if(record.catalogVersion&&record.catalogVersion!==CATALOG_VERSION)throw error('failed-precondition','食譜版本需要升級，請先完成版本相容程序。');
+   const missingCatalog=!record.catalogVersion;
    const retained=retainAccountSnapshot(record.snapshot,today);
    validateAccountSnapshot(retained);
-   if(canonical(record.snapshot)!==canonical(retained))record={...record,snapshot:retained,revision:record.revision+1,updatedAt:serverTimestamp(),updatedBy:uid};
+   if(missingCatalog||canonical(record.snapshot)!==canonical(retained))record={...record,catalogVersion:CATALOG_VERSION,snapshot:retained,revision:record.revision+1,updatedAt:serverTimestamp(),updatedBy:uid};
    if(!old.exists)t.set(ref,account);
    if(!data.exists||record.revision!==data.data().revision)t.set(dataRef,record);
    return {schemaVersion:2,profile,profileRevision:account.profileRevision,dataPath:path,legacyShared:!!binding?.verified,...result(record)};
@@ -71,6 +74,7 @@ export function createAccountService({db,auth,serverTimestamp,clock=()=>new Date
   const today=taipeiDate(clock());
   return db.runTransaction(async t=>{
    const {dataRef,record}=await resolve(t,uid);
+   if(record.catalogVersion&&record.catalogVersion!==CATALOG_VERSION)throw error('failed-precondition','請先升級食譜版本相容處理。');
    if(record.recentMutationIds.includes(mutation.id))return result(record);
    if(!Number.isInteger(mutation.baseRevision)||mutation.baseRevision<1||mutation.baseRevision>record.revision||record.revision-mutation.baseRevision>=128)throw error('failed-precondition','編輯版本已超過安全重試範圍。',{code:'sync/expired-mutation',latestSnapshot:record.snapshot,latestRevision:record.revision});
    let snapshot;

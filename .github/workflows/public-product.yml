@@ -4,10 +4,14 @@ on:
     branches: [public/uid-cross-platform]
   pull_request:
     paths: ['account/**', 'backend/**', 'ios/**', 'scripts/**', 'tests/**', '*.js', 'package*.json', 'firestore.public.rules']
+concurrency:
+  group: meal-public-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   web-and-backend:
+    if: github.event_name != 'pull_request' || github.head_ref != 'public/uid-cross-platform'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -22,9 +26,11 @@ jobs:
           java-version: 21
       - run: npm ci
       - run: npm test
+      - run: npm run test:accounts
       - run: npm run build:public
       - run: npm run test:public
   ios:
+    if: github.event_name != 'pull_request' || github.head_ref != 'public/uid-cross-platform'
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
